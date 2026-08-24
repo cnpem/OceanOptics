@@ -23,9 +23,7 @@
 #define QEProNLCString "QEPRO_NLC"
 
 // Thermo-Electric Cooler
-#define QEProTECTempString "QEPRO_TEC_TEMP"
 #define QEProTECString "QEPRO_TEC"
-#define QEProCurrTECTempString "QEPRO_CURR_TEC_TEMP"
 
 // Light sources feature
 #define QEProLightSourceString "QEPRO_LIGHT_SOURCE"
@@ -134,9 +132,7 @@ class QEPro : public ADDriver {
     int QEProConnected;
 
     // Thermal Electric Cooler
-    int QEProTECTemp;
     int QEProTEC;
-    int QEProCurrTECTemp;
 
     // Light Source Feature
     int QEProLightSource;

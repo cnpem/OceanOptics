@@ -621,7 +621,7 @@ asynStatus QEPro::writeInt32(asynUser* pasynUser, epicsInt32 value) {
             errLogToStatus("Number of spectra cannot be less than 1!", "setNumSpectra");
         }
     } else if (function < FIRST_QEPRO_PARAM) {
-        status = asynPortDriver::writeInt32(pasynUser, value);
+        status = ADDriver::writeInt32(pasynUser, value);
     }
 
     if (status) {
@@ -661,7 +661,7 @@ asynStatus QEPro::writeFloat64(asynUser* pasynUser, epicsFloat64 value) {
             seabreeze_set_light_source_intensity(this->deviceIndex, &(this->errorCode), i, value);
         }
     } else if (function < FIRST_QEPRO_PARAM) {
-        status = asynPortDriver::writeFloat64(pasynUser, value);
+        status = ADDriver::writeFloat64(pasynUser, value);
     }
 
     if (status) {
@@ -693,7 +693,7 @@ void QEPro::report(FILE* fp, int details) {
     if (details > 0) {
         fprintf(fp, " Connected Device Information\n");
 
-        asynPortDriver::report(fp, details);
+        ADDriver::report(fp, details);
     }
 }
 
@@ -915,9 +915,12 @@ void QEPro::getSpectrumThread(void* pPvt) {
 //----------------------------------------------------------------------------
 
 QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
-    : asynPortDriver(
-          portName, 1, /* maxAddr */
-          (int)NUM_QEPRO_PARAMS,
+    : ADDriver(
+          portName, /* portName */
+          1,        /* maxAddr */
+          (int)NUM_QEPRO_PARAMS, /* numParams */
+          0, /* maxBuffers (placeholder value) */
+          0, /* maxMemory (placeholder value)*/
           asynInt32Mask | asynFloat64Mask | asynFloat64ArrayMask | asynDrvUserMask |
               asynOctetMask, /* Interface mask */
           asynInt32Mask | asynFloat64Mask | asynFloat64ArrayMask |

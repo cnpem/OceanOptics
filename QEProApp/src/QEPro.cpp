@@ -209,7 +209,7 @@ asynStatus QEPro::getDeviceInformation() {
 
     char type[16];
     seabreeze_get_model(this->deviceIndex, &(this->errorCode), type, sizeof(type));
-    setStringParam(QEProModel, type);
+    setStringParam(ADModel, type);
 
     // Done twice to avoid lockup (not sure if needed, was in SDK example)
     char serial_number[32];
@@ -218,7 +218,7 @@ asynStatus QEPro::getDeviceInformation() {
     serial_number[31] = '\0';
     // this->flag = seabreeze_get_serial_number(this->deviceIndex, &(this->errorCode),
     // serial_number, sizeof(serial_number)); serial_number[31] = '\0';
-    setStringParam(QEProSerial, serial_number);
+    setStringParam(ADSerialNumber, serial_number);
 
     if (checkFeature(HAS_LIGHTSOURCE_FEATURE)) {
         int light_source_count =
@@ -936,8 +936,6 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
 
     if (debugEnable == 1) seabreeze_set_logfile(NULL, 0);
 
-    createParam(QEProSerialString, asynParamOctet, &QEProSerial);
-    createParam(QEProModelString, asynParamOctet, &QEProModel);
     createParam(QEProConnectedString, asynParamInt32, &QEProConnected);
     createParam(QEProFeaturesString, asynParamInt32, &QEProFeatures);
     createParam(QEProStrobeString, asynParamInt32, &QEProStrobe);

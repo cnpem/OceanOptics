@@ -7,10 +7,6 @@
 
 #include "api/SeaBreezeWrapper.h"
 
-// Device information
-#define QEProSerialString "QEPRO_SERIAL"
-#define QEProModelString "QEPRO_MODEL"
-
 // Device connected & features
 #define QEProConnectedString "QEPRO_CONNECTED"
 #define QEProFeaturesString "QEPRO_FEATURES"
@@ -125,10 +121,8 @@ class QEPro : public ADDriver {
     virtual void getSpectrumThread(void*);
 
    protected:
-    int QEProSerial;
-#define FIRST_QEPRO_PARAM QEProSerial
-    int QEProModel;
     int QEProFeatures;
+#define FIRST_QEPRO_PARAM QEProFeatures
 
     // Integration Time
     int QEProIntegrationTime;

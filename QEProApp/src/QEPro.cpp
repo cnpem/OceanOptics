@@ -419,7 +419,7 @@ asynStatus QEPro::checkStatus() {
     double temp = 0;
     if (checkFeature(HAS_TEC_FEATURE))
         temp = seabreeze_read_tec_temperature(this->deviceIndex, &(this->errorCode));
-    setDoubleParam(QEProCurrTECTemp, temp);
+    setDoubleParam(ADTemperatureActual, temp);
     int bufferElementCount =
         seabreeze_get_buffer_element_count(this->deviceIndex, &(this->errorCode));
     setIntegerParam(QEProBuffElementCount, bufferElementCount);
@@ -651,7 +651,7 @@ asynStatus QEPro::writeFloat64(asynUser* pasynUser, epicsFloat64 value) {
     static const char* functionName = "writeFloat64";
     if (function == QEProIntegrationTime) {
         status = setIntegrationTime((double)value);
-    } else if (function == QEProTECTemp && checkFeature(HAS_TEC_FEATURE)) {
+    } else if (function == ADTemperature && checkFeature(HAS_TEC_FEATURE)) {
         seabreeze_set_tec_temperature(this->deviceIndex, &(this->errorCode), value);
         if (this->errorCode != 0) status = asynError;
     } else if (function == QEProLightSourceIntensity && checkFeature(HAS_LIGHTSOURCE_FEATURE)) {
@@ -958,8 +958,6 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
 
     // Thermo Electric Cooler
     createParam(QEProTECString, asynParamInt32, &QEProTEC);
-    createParam(QEProTECTempString, asynParamFloat64, &QEProTECTemp);
-    createParam(QEProCurrTECTempString, asynParamFloat64, &QEProCurrTECTemp);
 
     // Spectra Params
     createParam(QEProSampleSpectrumString, asynParamFloat64Array, &QEProSample);

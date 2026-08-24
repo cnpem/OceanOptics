@@ -265,21 +265,6 @@ record(bi, "$(PREFIX):TEC_RBV") {
     field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_TEC")
 }
 
-record(ao, "$(PREFIX):TEC_TEMP") {
-    field(DESC, "TEC Temperature")
-    field(DTYP, "asynFloat64")
-    field(PREC, "2")
-    field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_TEC_TEMP")
-}
-
-record(ai, "$(PREFIX):TEC_TEMP_RBV") {
-    field(DESC, "Target TEC Temperature")
-    field(DTYP, "asynFloat64")
-    field(PREC, "2")
-    field(SCAN, "I/O Intr")
-    field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_TEC_TEMP")
-}
-
 
 record(bo, "$(PREFIX):CHECK_STATUS"){
     field(DESC, "Periodic status check")
@@ -289,14 +274,6 @@ record(bo, "$(PREFIX):CHECK_STATUS"){
     field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_CHECK_STATUS")
 }
 
-
-record(ai, "$(PREFIX):CURR_TEC_TEMP_RBV") {
-    field(DESC, "Target TEC Temperature")
-    field(DTYP, "asynFloat64")
-    field(PREC, "2")
-    field(SCAN, "I/O Intr")
-    field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_CURR_TEC_TEMP")
-}
 
 record(bo, "$(PREFIX):SHUTTER") {
     field(DTYP, "asynInt32")

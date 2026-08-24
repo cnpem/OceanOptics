@@ -915,9 +915,12 @@ void QEPro::getSpectrumThread(void* pPvt) {
 //----------------------------------------------------------------------------
 
 QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
-    : asynPortDriver(
-          portName, 1, /* maxAddr */
-          (int)NUM_QEPRO_PARAMS,
+    : ADDriver(
+          portName, /* portName */
+          1,        /* maxAddr */
+          (int)NUM_QEPRO_PARAMS, /* numParams */
+          0, /* maxBuffers (placeholder value) */
+          0, /* maxMemory (placeholder value)*/
           asynInt32Mask | asynFloat64Mask | asynFloat64ArrayMask | asynDrvUserMask |
               asynOctetMask, /* Interface mask */
           asynInt32Mask | asynFloat64Mask | asynFloat64ArrayMask |

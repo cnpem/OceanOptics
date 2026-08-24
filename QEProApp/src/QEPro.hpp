@@ -1,5 +1,6 @@
 #ifndef QEPRO_H
 #define QEPRO_H
+#include <ADDriver.h>
 #include <asynPortDriver.h>
 #include <epicsExport.h>
 #include <iocsh.h>
@@ -102,7 +103,7 @@ typedef enum QEProCollectionStatus { QEPRO_IDLE = 0, QEPRO_COLLECTING = 1 } QEPr
 
 #define MAX_DARK_PIXELS 32
 
-class QEPro : public asynPortDriver {
+class QEPro : public ADDriver {
    public:
     QEPro(const char* portName, int deviceIndex, int debugEnable);
     ~QEPro();

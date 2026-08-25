@@ -5,15 +5,6 @@
 #
 
 
-record(waveform, "$(PREFIX):STATUS_MSG") {
-    field(DTYP, "asynOctetRead")
-    field(DESC, "Status message")
-    field(SCAN, "I/O Intr")
-    field(FTVL, "CHAR")
-    field(NELM, "256")
-    field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_STATUS")
-}
-
 record(bi, "$(PREFIX):CONNECTED_RBV") {
     field(DTYP, "asynInt32")
     field(DESC, "0 if connected, 1 otherwise")
@@ -21,16 +12,6 @@ record(bi, "$(PREFIX):CONNECTED_RBV") {
     field(ZNAM, "Disconnected")
     field(ONAM, "Connected")
     field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_CONNECTED")
-    field(SCAN, "I/O Intr")
-}
-
-record(bi, "$(PREFIX):STATUS") {
-    field(DTYP, "asynInt32")
-    field(DESC, "0 status ok, 1 if error")
-    field(VAL,  "0")
-    field(ZNAM, "No Error")
-    field(ONAM, "Error")
-    field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_ERR")
     field(SCAN, "I/O Intr")
 }
 

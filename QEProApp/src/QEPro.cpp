@@ -120,15 +120,15 @@ void QEPro::printConnectedDeviceInfo() {
 
 void QEPro::errLogToStatus(const char* msg, const char* functionName) {
     ERR(msg);
-    setIntegerParam(QEProStatus, 1);
-    setStringParam(QEProStatusMsg, msg);
+    setIntegerParam(ADStatus, 1);
+    setStringParam(ADStatusMessage, msg);
     callParamCallbacks();
 }
 
 void QEPro::logToStatus(const char* msg, const char* functionName) {
     LOG(msg);
-    setIntegerParam(QEProStatus, 0);
-    setStringParam(QEProStatusMsg, msg);
+    setIntegerParam(ADStatus, 0);
+    setStringParam(ADStatusMessage, msg);
     callParamCallbacks();
 }
 
@@ -987,9 +987,6 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
 
     createParam(QEProCheckStatusString, asynParamInt32, &QEProCheckStatus);
     createParam(QEProShutterString, asynParamInt32, &QEProShutter);
-
-    createParam(QEProStatusString, asynParamInt32, &QEProStatus);
-    createParam(QEProStatusMsgString, asynParamOctet, &QEProStatusMsg);
 
     asynStatus connected = connectToDeviceQEPro();
     if (connected == asynSuccess) {

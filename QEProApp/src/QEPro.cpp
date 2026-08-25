@@ -705,7 +705,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
 
     // Loop forever while we are connected
     while (deviceConnected == 1) {
-        int collectionMode;
+        int imageMode;
         int spectrumType = 0;
         int acquireStatus;
         int raman;
@@ -718,7 +718,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
         bool performAbs = false;
 
         getIntegerParam(ADAcquire, &acquireStatus);
-        getIntegerParam(QEProCollectMode, &collectionMode);
+        getIntegerParam(ADImageMode, &imageMode);
         getIntegerParam(QEProXAxisFormat, &raman);
         getIntegerParam(QEProCorrection, &correction);
         getIntegerParam(QEProSpectrumType, &spectrumType);
@@ -846,13 +846,13 @@ void QEPro::getSpectrumThread(void* pPvt) {
                     // In single mode, or if the num spectra to average is one, just output the
                     // final spectrum In average or continuous modes, compute average first, then
                     // output.
-                    if (collectionMode == QEPRO_ACQUISITION_SINGLE || numSpectraToAverage == 1) {
+                    if (imageMode == ADImageSingle || numSpectraToAverage == 1) {
                         logToStatus("Wrote out spectrum.", functionName);
                         doCallbacksFloat64Array(this->sample, formattedLen,
                                                 QEProSample, 0);
                         doCallbacksFloat64Array(this->output, formattedLen, QEProOutput, 0);
-                    } else if (collectionMode == QEPRO_ACQUISITION_AVERAGE ||
-                               collectionMode == QEPRO_ACQUISITION_CONTINUOUS) {
+                    } else if (imageMode == ADImageMultiple ||
+                               imageMode == ADImageContinuous) {
                         // Add collected spectrum to average
                         for (int i = 0; i < formattedLen; i++) {
                             this->averaged[i] += this->output[i];
@@ -881,7 +881,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
 
                             // In continuous mode set number of spectra back to 0 for averaging
                             // purposes.
-                            if (collectionMode == QEPRO_ACQUISITION_CONTINUOUS)
+                            if (imageMode == ADImageContinuous)
                                 setIntegerParam(QEProSpectraCollected, 0);
                         }
                     }
@@ -913,10 +913,10 @@ void QEPro::getSpectrumThread(void* pPvt) {
             // In single mode, or if we collected a dark/reference frame, stop after one grab
             // In average mode, stop after we collect one average set.
             // In continuous mode we don't stop until the user specifies
-            if (collectionMode == QEPRO_ACQUISITION_SINGLE || (spectrumType != QEPRO_SPECTRUM_CORRECTED_SAMPLE && spectrumType != QEPRO_SPECTRUM_ABSORBTION)) {
+            if (imageMode == ADImageSingle || (spectrumType != QEPRO_SPECTRUM_CORRECTED_SAMPLE && spectrumType != QEPRO_SPECTRUM_ABSORBTION)) {
                 setIntegerParam(ADAcquire, 0);
             } else if (spectraCollected == numSpectraToAverage &&
-                       collectionMode == QEPRO_ACQUISITION_AVERAGE) {
+                       imageMode == ADImageMultiple) {
                 setIntegerParam(ADAcquire, 0);
             }
         }
@@ -1005,7 +1005,6 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
     createParam(QEProNumSpectraString, asynParamInt32, &QEProNumSpectra);
     createParam(QEProSpectraCollectedString, asynParamInt32, &QEProSpectraCollected);
 
-    createParam(QEProCollectModeString, asynParamInt32, &QEProCollectMode);
     createParam(QEProXAxisFormatString, asynParamInt32, &QEProXAxisFormat);
 
     createParam(QEProTriggerModeString, asynParamInt32, &QEProTriggerMode);

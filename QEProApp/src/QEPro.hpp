@@ -62,8 +62,6 @@
 
 // Status/error state records
 #define QEProCheckStatusString "QEPRO_CHECK_STATUS"
-#define QEProStatusString "QEPRO_ERR"
-#define QEProStatusMsgString "QEPRO_STATUS"
 
 typedef enum QEProFeature {
     HAS_NONLINEARITY_CORRECTION = 32,
@@ -171,9 +169,7 @@ class QEPro : public ADDriver {
     int QEProTriggerMode;
     int QEProShutter;
     int QEProCheckStatus;
-    int QEProStatus;
-    int QEProStatusMsg;
-#define LAST_QEPRO_PARAM QEProStatusMsg
+#define LAST_QEPRO_PARAM QEProCheckStatus
    private:
     int deviceIndex;
     int flag;

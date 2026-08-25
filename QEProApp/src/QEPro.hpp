@@ -39,7 +39,6 @@
 // Acquisiton settings
 #define QEProCollectModeString "QEPRO_COLLECT_MODE"
 #define QEProTriggerModeString "QEPRO_TRIGGER_MODE"
-#define QEProCollectString "QEPRO_COLLECT"
 #define QEProSubtractFormatString "QEPRO_SUB_FORMAT"
 #define QEProCorrectionString "QEPRO_CORRECTION"
 #define QEProSpectrumTypeString "QEPRO_SPECTRUM_TYPE"
@@ -90,8 +89,6 @@ typedef enum QEProSpectrumType {
     QEPRO_SPECTRUM_CORRECTED_SAMPLE = 2,
     QEPRO_SPECTRUM_ABSORBTION = 3
 } QEProSpectrumType_t;
-
-typedef enum QEProCollectionStatus { QEPRO_IDLE = 0, QEPRO_COLLECTING = 1 } QEProCollectionStatus_t;
 
 #define MAX_DARK_PIXELS 32
 
@@ -154,7 +151,6 @@ class QEPro : public ADDriver {
     int QEProEDC;
     int QEProNLC;
     // Collection Specific Params
-    int QEProCollect;
     int QEProCollectMode;
     int QEProXAxisFormat;
 

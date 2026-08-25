@@ -37,7 +37,6 @@
 #define QEProBuffElementCountString "QEPRO_BUFF_ELEMENT_CNT"
 
 // Acquisiton settings
-#define QEProCollectModeString "QEPRO_COLLECT_MODE"
 #define QEProTriggerModeString "QEPRO_TRIGGER_MODE"
 #define QEProSubtractFormatString "QEPRO_SUB_FORMAT"
 #define QEProCorrectionString "QEPRO_CORRECTION"
@@ -76,12 +75,6 @@ typedef enum QEProCorrection {
     QEPRO_CORRECTION_DARK = 1,
     QEPRO_CORRECTION_REF = 2
 } QEProCorrection_t;
-
-typedef enum QEProAcquisitionMode {
-    QEPRO_ACQUISITION_SINGLE = 0,
-    QEPRO_ACQUISITION_AVERAGE = 1,
-    QEPRO_ACQUISITION_CONTINUOUS = 2
-} QEProAcquisitionMode_t;
 
 typedef enum QEProSpectrumType {
     QEPRO_SPECTRUM_DARK = 0,
@@ -151,7 +144,6 @@ class QEPro : public ADDriver {
     int QEProEDC;
     int QEProNLC;
     // Collection Specific Params
-    int QEProCollectMode;
     int QEProXAxisFormat;
 
     int QEProMinBuffCapacity;

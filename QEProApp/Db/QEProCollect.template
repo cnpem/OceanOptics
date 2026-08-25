@@ -1,24 +1,3 @@
-record(bo, "$(PREFIX):COLLECT") {
-    field(DTYP, "asynInt32")
-    field(DESC, "Flag for collecting")
-    field(VAL,  "0")
-    field(ZNAM, "Idle")
-    field(ONAM, "Collecting")
-    field(PINI, "YES")
-    field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_COLLECT")
-}
-
-record(bi, "$(PREFIX):COLLECT_RBV") {
-    field(DTYP, "asynInt32")
-    field(DESC, "Flag for collecting")
-    field(VAL,  "0")
-    field(ZNAM, "Idle")
-    field(ONAM, "Collecting")
-    field(SCAN, "I/O Intr")
-    field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_COLLECT")
-}
-
-
 record(bo, "$(PREFIX):SUBTRACT_FORMAT") {
     field(DTYP, "asynInt32")
     field(DESC, "Specifiy whether to abs negative values")

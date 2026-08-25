@@ -612,7 +612,7 @@ asynStatus QEPro::writeInt32(asynUser* pasynUser, epicsInt32 value) {
         for (int i = 0; i < num_light_sources; i++) {
             seabreeze_set_light_source_enable(this->deviceIndex, &(this->errorCode), i, value);
         }
-    } else if (function == QEProCollect && value == QEPRO_COLLECTING) {
+    } else if (function == ADAcquire && value) {
         // If we start collecting, reset the number of spectra collected to 0.
         status = setIntegerParam(QEProSpectraCollected, 0);
     } else if (function == QEProNumSpectra) {
@@ -708,7 +708,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
     while (deviceConnected == 1) {
         int collectionMode;
         int spectrumType = 0;
-        int collectStatus;
+        int acquireStatus;
         int raman;
         int correction;
         int darkAvailable, refAvailable;
@@ -718,7 +718,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
         int abs;
         bool performAbs = false;
 
-        getIntegerParam(QEProCollect, &collectStatus);
+        getIntegerParam(ADAcquire, &acquireStatus);
         getIntegerParam(QEProCollectMode, &collectionMode);
         getIntegerParam(QEProXAxisFormat, &raman);
         getIntegerParam(QEProCorrection, &correction);
@@ -733,7 +733,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
         if (abs == 1) performAbs = true;
 
 
-        if (collectStatus == QEPRO_COLLECTING) {
+        if (acquireStatus) {
             int formattedLen;
             getIntegerParam(QEProFormattedSpectLen, &formattedLen);
 
@@ -783,11 +783,11 @@ void QEPro::getSpectrumThread(void* pPvt) {
                     errLogToStatus(
                         "Reference and dark spectra required for selected mode!",
                         functionName);
-                    setIntegerParam(QEProCollect, QEPRO_IDLE);
+                    setIntegerParam(ADAcquire, 0);
                 } else if (correction == QEPRO_CORRECTION_DARK && darkAvailable != 1) {
                     errLogToStatus("Dark spectrum required for sleected mode!",
                                    functionName);
-                    setIntegerParam(QEProCollect, QEPRO_IDLE);
+                    setIntegerParam(ADAcquire, 0);
                 } else {
                     // Collect our sample spectrum
                     seabreeze_get_formatted_spectrum(this->deviceIndex, &(this->errorCode),
@@ -892,10 +892,10 @@ void QEPro::getSpectrumThread(void* pPvt) {
             // In average mode, stop after we collect one average set.
             // In continuous mode we don't stop until the user specifies
             if (collectionMode == QEPRO_ACQUISITION_SINGLE || (spectrumType != QEPRO_SPECTRUM_CORRECTED_SAMPLE && spectrumType != QEPRO_SPECTRUM_ABSORBTION)) {
-                setIntegerParam(QEProCollect, QEPRO_IDLE);
+                setIntegerParam(ADAcquire, 0);
             } else if (spectraCollected == numSpectraToAverage &&
                        collectionMode == QEPRO_ACQUISITION_AVERAGE) {
-                setIntegerParam(QEProCollect, QEPRO_IDLE);
+                setIntegerParam(ADAcquire, 0);
             }
         }
 
@@ -980,7 +980,6 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
     createParam(QEProSpectraCollectedString, asynParamInt32, &QEProSpectraCollected);
 
     createParam(QEProCollectModeString, asynParamInt32, &QEProCollectMode);
-    createParam(QEProCollectString, asynParamInt32, &QEProCollect);
     createParam(QEProXAxisFormatString, asynParamInt32, &QEProXAxisFormat);
 
     createParam(QEProTriggerModeString, asynParamInt32, &QEProTriggerMode);

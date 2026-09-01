@@ -120,14 +120,13 @@ void QEPro::printConnectedDeviceInfo() {
 
 void QEPro::errLogToStatus(const char* msg, const char* functionName) {
     ERR(msg);
-    setIntegerParam(ADStatus, 1);
+    setIntegerParam(ADStatus, ADStatusError);
     setStringParam(ADStatusMessage, msg);
     callParamCallbacks();
 }
 
 void QEPro::logToStatus(const char* msg, const char* functionName) {
     LOG(msg);
-    setIntegerParam(ADStatus, 0);
     setStringParam(ADStatusMessage, msg);
     callParamCallbacks();
 }
@@ -737,17 +736,25 @@ void QEPro::getSpectrumThread(void* pPvt) {
             int formattedLen;
             getIntegerParam(QEProFormattedSpectLen, &formattedLen);
 
+            setIntegerParam(ADStatus, ADStatusAcquire);
+            callParamCallbacks();
             // Case 1, we are collecting dark frame
             if (spectrumType == QEPRO_SPECTRUM_DARK) {
                 LOG("Collecting dark spectrum...");
                 seabreeze_get_formatted_spectrum(this->deviceIndex, &(this->errorCode), this->dark,
                                                  formattedLen);
 
-                if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE))
+                if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE)) {
+                    setIntegerParam(ADStatus, ADStatusCorrect);
+                    callParamCallbacks();
                     performElectricDarkCorrection(this->dark, formattedLen);
+                }
 
-                if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION))
+                if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION)) {
+                    setIntegerParam(ADStatus, ADStatusCorrect);
+                    callParamCallbacks();
                     performNonLinearityCorrection(this->dark, formattedLen);
+                }
 
                 doCallbacksFloat64Array(this->dark, formattedLen, QEProDark, 0);
                 setIntegerParam(QEProDarkAvailable, 1);
@@ -762,11 +769,17 @@ void QEPro::getSpectrumThread(void* pPvt) {
                 seabreeze_get_formatted_spectrum(this->deviceIndex, &(this->errorCode),
                                                  this->reference, formattedLen);
 
-                if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE))
+                if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE)) {
+                    setIntegerParam(ADStatus, ADStatusCorrect);
+                    callParamCallbacks();
                     performElectricDarkCorrection(this->reference, formattedLen);
+                }
 
-                if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION))
+                if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION)) {
+                    setIntegerParam(ADStatus, ADStatusCorrect);
+                    callParamCallbacks();
                     performNonLinearityCorrection(this->reference, formattedLen);
+                }
 
                 doCallbacksFloat64Array(this->reference, formattedLen, QEProReference, 0);
                 setIntegerParam(QEProRefAvailable, 1);
@@ -794,11 +807,17 @@ void QEPro::getSpectrumThread(void* pPvt) {
                                                      this->sample, formattedLen);
 
                     // Perform EDC and NLC corrections if supported and selected
-                    if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE))
+                    if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE)) {
+                        setIntegerParam(ADStatus, ADStatusCorrect);
+                        callParamCallbacks();
                         performElectricDarkCorrection(this->sample, formattedLen);
+                    }
 
-                    if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION))
+                    if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION)) {
+                        setIntegerParam(ADStatus, ADStatusCorrect);
+                        callParamCallbacks();
                         performNonLinearityCorrection(this->sample, formattedLen);
+                    }
 
                     // Perform any selected dark/reference correction or absorbtion calculations
                     if (spectrumType == QEPRO_SPECTRUM_ABSORBTION){
@@ -816,6 +835,9 @@ void QEPro::getSpectrumThread(void* pPvt) {
                         // If we don't apply corrections, just feed out the raw spectrum
                         memcpy(this->output, this->sample, formattedLen * sizeof(double));
                     }
+
+                    setIntegerParam(ADStatus, ADStatusReadout);
+                    callParamCallbacks();
 
                     // Increment our spectra collected counter by one
                     spectraCollected++;
@@ -899,6 +921,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
             }
         }
 
+        setIntegerParam(ADStatus, ADStatusIdle);
         callParamCallbacks();
 
         // Check again if device is connected before loop again
@@ -930,6 +953,9 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
           0, /* Default priority */
           0) /* Default stack size*/
 {
+    setIntegerParam(ADStatus, ADStatusInitializing);
+    callParamCallbacks();
+
     static const char* functionName = "QEPro";
 
     this->deviceIndex = deviceIndex;

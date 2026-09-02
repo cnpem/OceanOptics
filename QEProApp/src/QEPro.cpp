@@ -613,8 +613,8 @@ asynStatus QEPro::writeInt32(asynUser* pasynUser, epicsInt32 value) {
         }
     } else if (function == ADAcquire && value) {
         // If we start collecting, reset the number of spectra collected to 0.
-        status = setIntegerParam(QEProSpectraCollected, 0);
-    } else if (function == QEProNumSpectra) {
+        status = setIntegerParam(ADNumImagesCounter, 0);
+    } else if (function == ADNumImages) {
         if (value < 1) {
             status = asynError;
             errLogToStatus("Number of spectra cannot be less than 1!", "setNumSpectra");
@@ -711,7 +711,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
         int raman;
         int correction;
         int darkAvailable, refAvailable;
-        int spectraCollected;
+        int spectraAcquired;
         int numSpectraToAverage;
         int edcCorrection, nonLinearityCorrection;
         int abs;
@@ -724,8 +724,8 @@ void QEPro::getSpectrumThread(void* pPvt) {
         getIntegerParam(QEProSpectrumType, &spectrumType);
         getIntegerParam(QEProDarkAvailable, &darkAvailable);
         getIntegerParam(QEProRefAvailable, &refAvailable);
-        getIntegerParam(QEProSpectraCollected, &spectraCollected);
-        getIntegerParam(QEProNumSpectra, &numSpectraToAverage);
+        getIntegerParam(ADNumImagesCounter, &spectraAcquired);
+        getIntegerParam(ADNumImages, &numSpectraToAverage);
         getIntegerParam(QEProEDC, &edcCorrection);
         getIntegerParam(QEProNLC, &nonLinearityCorrection);
         getIntegerParam(QEProSubtractFormat, &abs);
@@ -840,8 +840,8 @@ void QEPro::getSpectrumThread(void* pPvt) {
                     callParamCallbacks();
 
                     // Increment our spectra collected counter by one
-                    spectraCollected++;
-                    setIntegerParam(QEProSpectraCollected, spectraCollected);
+                    spectraAcquired++;
+                    setIntegerParam(ADNumImagesCounter, spectraAcquired);
 
                     // In single mode, or if the num spectra to average is one, just output the
                     // final spectrum In average or continuous modes, compute average first, then
@@ -859,7 +859,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
                             this->averagedSample[i] += this->sample[i];
                         }
 
-                        if (spectraCollected == numSpectraToAverage) {
+                        if (spectraAcquired == numSpectraToAverage) {
                             // calculate the final averages for each value
                             for (int i = 0; i < formattedLen; i++) {
                                 this->averaged[i] =
@@ -882,7 +882,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
                             // In continuous mode set number of spectra back to 0 for averaging
                             // purposes.
                             if (imageMode == ADImageContinuous)
-                                setIntegerParam(QEProSpectraCollected, 0);
+                                setIntegerParam(ADNumImagesCounter, 0);
                         }
                     }
                 }
@@ -915,7 +915,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
             // In continuous mode we don't stop until the user specifies
             if (imageMode == ADImageSingle || (spectrumType != QEPRO_SPECTRUM_CORRECTED_SAMPLE && spectrumType != QEPRO_SPECTRUM_ABSORBTION)) {
                 setIntegerParam(ADAcquire, 0);
-            } else if (spectraCollected == numSpectraToAverage &&
+            } else if (spectraAcquired == numSpectraToAverage &&
                        imageMode == ADImageMultiple) {
                 setIntegerParam(ADAcquire, 0);
             }
@@ -1001,9 +1001,6 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
 
     createParam(QEProEDCString, asynParamInt32, &QEProEDC);
     createParam(QEProNLCString, asynParamInt32, &QEProNLC);
-
-    createParam(QEProNumSpectraString, asynParamInt32, &QEProNumSpectra);
-    createParam(QEProSpectraCollectedString, asynParamInt32, &QEProSpectraCollected);
 
     createParam(QEProXAxisFormatString, asynParamInt32, &QEProXAxisFormat);
 

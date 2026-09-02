@@ -100,28 +100,3 @@ record(mbbi, "$(PREFIX):CORRECTION_RBV") {
     field(SCAN, "I/O Intr")
     field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_CORRECTION")
 }
-
-
-record(ao, "$(PREFIX):NUM_SPECTRA") {
-    field(DESC, "Number of Spectra to average")
-    field(DTYP, "asynInt32")
-    field(VAL, "1")
-    field(PINI, "YES")
-    field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_NUM_SPECTRA")
-}
-
-record(ai, "$(PREFIX):NUM_SPECTRA_RBV") {
-    field(DESC, "Number of Spectra to average")
-    field(DTYP, "asynInt32")
-    field(VAL, "1")
-    field(SCAN, "I/O Intr")
-    field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_NUM_SPECTRA")
-}
-
-record(ai, "$(PREFIX):SPECTRA_COLLECTED_RBV") {
-    field(DESC, "Number of Spectra to average")
-    field(DTYP, "asynInt32")
-    field(VAL, "0")
-    field(SCAN, "I/O Intr")
-    field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))QEPRO_SPECTRA_COLLECTED")
-}

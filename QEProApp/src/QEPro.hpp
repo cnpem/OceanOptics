@@ -54,10 +54,6 @@
 #define QEProSampleSpectrumString "QEPRO_SAMPLE_SPECT"
 #define QEProOutputSpectrumString "QEPRO_OUTPUT_SPECT"
 
-// Counter for spectra collected
-#define QEProNumSpectraString "QEPRO_NUM_SPECTRA"
-#define QEProSpectraCollectedString "QEPRO_SPECTRA_COLLECTED"
-
 // Status/error state records
 #define QEProCheckStatusString "QEPRO_CHECK_STATUS"
 
@@ -150,9 +146,6 @@ class QEPro : public ADDriver {
     int QEProMaxBuffCapacity;
     int QEProBuffCapacity;
     int QEProBuffElementCount;
-
-    int QEProNumSpectra;
-    int QEProSpectraCollected;
 
     int QEProTriggerMode;
     int QEProShutter;

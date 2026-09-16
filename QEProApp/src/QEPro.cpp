@@ -700,6 +700,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
     // Loop forever while we are connected
     while (deviceConnected == 1) {
         int imageMode;
+        int acquisitionAverage;
         int spectrumType = 0;
         int acquireStatus;
         int raman;
@@ -713,6 +714,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
 
         getIntegerParam(ADAcquire, &acquireStatus);
         getIntegerParam(ADImageMode, &imageMode);
+        getIntegerParam(QEProAcquisitionAverage, &acquisitionAverage);
         getIntegerParam(QEProXAxisFormat, &raman);
         getIntegerParam(QEProCorrection, &correction);
         getIntegerParam(QEProSpectrumType, &spectrumType);
@@ -817,20 +819,16 @@ void QEPro::getSpectrumThread(void* pPvt) {
                     spectraAcquired++;
                     setIntegerParam(ADNumImagesCounter, spectraAcquired);
 
-                    // In single mode, or if the num spectra to average is one, just output the
-                    // final spectrum In average or continuous modes, compute average first, then
-                    // output.
-
-                    switch (imageMode) {
-                        case ADImageSingle:
+                    // If average is not desired OR acquisiton mode single
+                    // output the specturm right away
+                    if (!acquisitionAverage || (imageMode == ADImageSingle)) {
                         logToStatus("Wrote out spectrum.", functionName);
                         doCallbacksFloat64Array(buffers_data[SAMPLE_SPECTRUM_BUFFER], formattedLen,
                                                 QEProSample, 0);
                         doCallbacksFloat64Array(buffers_data[OUTPUT_SPECTRUM_BUFFER], formattedLen, QEProOutput, 0);
-                        break;
-
-                        case ADImageMultiple:
-                        case ADImageContinuous:
+                    // If average is desired AND acquistion mode is multiple OR continuous
+                    // calculate the average of numSpectraToAverage spectra
+                    } else if (imageMode == ADImageMultiple || ADImageContinuous) {
                         // Add collected spectrum to average
                         for (int i = 0; i < formattedLen; i++) {
                             buffers_data[AVERAGED_SPECTRUM_BUFFER][i] += buffers_data[OUTPUT_SPECTRUM_BUFFER][i];
@@ -862,7 +860,6 @@ void QEPro::getSpectrumThread(void* pPvt) {
                             if (imageMode == ADImageContinuous)
                                 setIntegerParam(ADNumImagesCounter, 0);
                         }
-                        break;
                     }
                 }
                    
@@ -984,6 +981,8 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
     createParam(QEProXAxisFormatString, asynParamInt32, &QEProXAxisFormat);
 
     createParam(QEProTriggerModeString, asynParamInt32, &QEProTriggerMode);
+
+    createParam(QEProAcquisitionAverageString, asynParamInt32, &QEProAcquisitionAverage);
 
     createParam(QEProCheckStatusString, asynParamInt32, &QEProCheckStatus);
     createParam(QEProShutterString, asynParamInt32, &QEProShutter);

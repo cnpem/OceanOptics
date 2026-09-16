@@ -5,6 +5,8 @@
 #include <epicsExport.h>
 #include <iocsh.h>
 
+#include <array>
+
 #include "api/SeaBreezeWrapper.h"
 
 // Device connected & features
@@ -79,6 +81,17 @@ typedef enum QEProSpectrumType {
     QEPRO_SPECTRUM_ABSORBTION = 3
 } QEProSpectrumType_t;
 
+typedef enum QEProBuffersId {
+    DARK_SPECTRUM_BUFFER,
+    REFERENCE_SPECTRUM_BUFFER,
+    SAMPLE_SPECTRUM_BUFFER,
+    OUTPUT_SPECTRUM_BUFFER,
+    AVERAGED_SPECTRUM_BUFFER,
+    AVERAGED_SAMPLE_SPECTRUM_BUFFER,
+    WAVELENGTHS_BUFFER
+} QEProBuffersId_t;
+
+#define NUM_BUFFERS WAVELENGTHS_BUFFER
 #define MAX_DARK_PIXELS 32
 
 class QEPro : public ADDriver {
@@ -162,13 +175,7 @@ class QEPro : public ADDriver {
     float nonLinearityCoeffs[8] = {0};
 
     // Buffers (allocated once on startup for better perf)
-    double* wavelengths;
-    double* dark;
-    double* reference;
-    double* sample;
-    double* output;
-    double* averaged;
-    double* averagedSample;
+    std::array<NDArray*, NUM_BUFFERS> buffers;
 
     // Functions for allocating memories for the various spectrum buffers
     void allocateBuffers();
@@ -180,6 +187,7 @@ class QEPro : public ADDriver {
     // Utility functions
     asynStatus getDeviceInformation();
     void printConnectedDeviceInfo();
+    double* getDoubleBuffer(int index);
 
     // Functions for connecting/disconnecting device
     asynStatus connectToDeviceQEPro();

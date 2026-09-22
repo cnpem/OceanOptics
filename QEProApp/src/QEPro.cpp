@@ -22,6 +22,8 @@
 #include <epicsTime.h>
 #include <iocsh.h>
 
+#include <NDAttribute.h>
+
 // Include Seabreeze api wrapper
 #include "api/SeaBreezeWrapper.h"
 
@@ -120,15 +122,14 @@ void QEPro::printConnectedDeviceInfo() {
 
 void QEPro::errLogToStatus(const char* msg, const char* functionName) {
     ERR(msg);
-    setIntegerParam(QEProStatus, 1);
-    setStringParam(QEProStatusMsg, msg);
+    setIntegerParam(ADStatus, ADStatusError);
+    setStringParam(ADStatusMessage, msg);
     callParamCallbacks();
 }
 
 void QEPro::logToStatus(const char* msg, const char* functionName) {
     LOG(msg);
-    setIntegerParam(QEProStatus, 0);
-    setStringParam(QEProStatusMsg, msg);
+    setStringParam(ADStatusMessage, msg);
     callParamCallbacks();
 }
 
@@ -209,7 +210,7 @@ asynStatus QEPro::getDeviceInformation() {
 
     char type[16];
     seabreeze_get_model(this->deviceIndex, &(this->errorCode), type, sizeof(type));
-    setStringParam(QEProModel, type);
+    setStringParam(ADModel, type);
 
     // Done twice to avoid lockup (not sure if needed, was in SDK example)
     char serial_number[32];
@@ -218,7 +219,7 @@ asynStatus QEPro::getDeviceInformation() {
     serial_number[31] = '\0';
     // this->flag = seabreeze_get_serial_number(this->deviceIndex, &(this->errorCode),
     // serial_number, sizeof(serial_number)); serial_number[31] = '\0';
-    setStringParam(QEProSerial, serial_number);
+    setStringParam(ADSerialNumber, serial_number);
 
     if (checkFeature(HAS_LIGHTSOURCE_FEATURE)) {
         int light_source_count =
@@ -419,7 +420,7 @@ asynStatus QEPro::checkStatus() {
     double temp = 0;
     if (checkFeature(HAS_TEC_FEATURE))
         temp = seabreeze_read_tec_temperature(this->deviceIndex, &(this->errorCode));
-    setDoubleParam(QEProCurrTECTemp, temp);
+    setDoubleParam(ADTemperatureActual, temp);
     int bufferElementCount =
         seabreeze_get_buffer_element_count(this->deviceIndex, &(this->errorCode));
     setIntegerParam(QEProBuffElementCount, bufferElementCount);
@@ -440,13 +441,10 @@ void QEPro::allocateBuffers() {
         getIntegerParam(QEProFormattedSpectLen, &formattedLen);
         // getIntegerParam(QEProUnformattedSpectLen, &unformattedLen);
 
-        this->wavelengths = (double*)calloc(formattedLen, sizeof(double));
-        this->dark = (double*)calloc(formattedLen, sizeof(double));
-        this->reference = (double*)calloc(formattedLen, sizeof(double));
-        this->sample = (double*)calloc(formattedLen, sizeof(double));
-        this->output = (double*)calloc(formattedLen, sizeof(double));
-        this->averaged = (double*)calloc(formattedLen, sizeof(double));
-        this->averagedSample = (double*)calloc(formattedLen, sizeof(double));
+        for (int i = 0; i < NUM_BUFFERS; i++) {
+            buffers[i] = pNDArrayPool->alloc(1, &dim, NDFloat64, dim, NULL);
+            buffers_data[i] = (double*)(buffers[i]->pData);
+        }
     }
 }
 
@@ -458,13 +456,8 @@ void QEPro::clearBuffers() {
     int connected;
     getIntegerParam(QEProConnected, &connected);
     if (connected == 1) {
-        free(this->wavelengths);
-        free(this->dark);
-        free(this->reference);
-        free(this->sample);
-        free(this->output);
-        free(this->averaged);
-        free(this->averagedSample);
+        for (int i = 0; i < NUM_BUFFERS; i++)
+            buffers[i]->release();
     }
 }
 
@@ -612,10 +605,10 @@ asynStatus QEPro::writeInt32(asynUser* pasynUser, epicsInt32 value) {
         for (int i = 0; i < num_light_sources; i++) {
             seabreeze_set_light_source_enable(this->deviceIndex, &(this->errorCode), i, value);
         }
-    } else if (function == QEProCollect && value == QEPRO_COLLECTING) {
+    } else if (function == ADAcquire && value) {
         // If we start collecting, reset the number of spectra collected to 0.
-        status = setIntegerParam(QEProSpectraCollected, 0);
-    } else if (function == QEProNumSpectra) {
+        status = setIntegerParam(ADNumImagesCounter, 0);
+    } else if (function == ADNumImages) {
         if (value < 1) {
             status = asynError;
             errLogToStatus("Number of spectra cannot be less than 1!", "setNumSpectra");
@@ -651,7 +644,7 @@ asynStatus QEPro::writeFloat64(asynUser* pasynUser, epicsFloat64 value) {
     static const char* functionName = "writeFloat64";
     if (function == QEProIntegrationTime) {
         status = setIntegrationTime((double)value);
-    } else if (function == QEProTECTemp && checkFeature(HAS_TEC_FEATURE)) {
+    } else if (function == ADTemperature && checkFeature(HAS_TEC_FEATURE)) {
         seabreeze_set_tec_temperature(this->deviceIndex, &(this->errorCode), value);
         if (this->errorCode != 0) status = asynError;
     } else if (function == QEProLightSourceIntensity && checkFeature(HAS_LIGHTSOURCE_FEATURE)) {
@@ -706,50 +699,58 @@ void QEPro::getSpectrumThread(void* pPvt) {
 
     // Loop forever while we are connected
     while (deviceConnected == 1) {
-        int collectionMode;
+        int imageMode;
         int spectrumType = 0;
-        int collectStatus;
+        int acquireStatus;
         int raman;
         int correction;
         int darkAvailable, refAvailable;
-        int spectraCollected;
+        int spectraAcquired;
         int numSpectraToAverage;
         int edcCorrection, nonLinearityCorrection;
         int abs;
         bool performAbs = false;
 
-        getIntegerParam(QEProCollect, &collectStatus);
-        getIntegerParam(QEProCollectMode, &collectionMode);
+        getIntegerParam(ADAcquire, &acquireStatus);
+        getIntegerParam(ADImageMode, &imageMode);
         getIntegerParam(QEProXAxisFormat, &raman);
         getIntegerParam(QEProCorrection, &correction);
         getIntegerParam(QEProSpectrumType, &spectrumType);
         getIntegerParam(QEProDarkAvailable, &darkAvailable);
         getIntegerParam(QEProRefAvailable, &refAvailable);
-        getIntegerParam(QEProSpectraCollected, &spectraCollected);
-        getIntegerParam(QEProNumSpectra, &numSpectraToAverage);
+        getIntegerParam(ADNumImagesCounter, &spectraAcquired);
+        getIntegerParam(ADNumImages, &numSpectraToAverage);
         getIntegerParam(QEProEDC, &edcCorrection);
         getIntegerParam(QEProNLC, &nonLinearityCorrection);
         getIntegerParam(QEProSubtractFormat, &abs);
         if (abs == 1) performAbs = true;
 
 
-        if (collectStatus == QEPRO_COLLECTING) {
+        if (acquireStatus) {
             int formattedLen;
             getIntegerParam(QEProFormattedSpectLen, &formattedLen);
 
+            setIntegerParam(ADStatus, ADStatusAcquire);
+            callParamCallbacks();
             // Case 1, we are collecting dark frame
             if (spectrumType == QEPRO_SPECTRUM_DARK) {
                 LOG("Collecting dark spectrum...");
-                seabreeze_get_formatted_spectrum(this->deviceIndex, &(this->errorCode), this->dark,
+                seabreeze_get_formatted_spectrum(this->deviceIndex, &(this->errorCode), buffers_data[DARK_SPECTRUM_BUFFER],
                                                  formattedLen);
 
-                if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE))
-                    performElectricDarkCorrection(this->dark, formattedLen);
+                if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE)) {
+                    setIntegerParam(ADStatus, ADStatusCorrect);
+                    callParamCallbacks();
+                    performElectricDarkCorrection(buffers_data[DARK_SPECTRUM_BUFFER], formattedLen);
+                }
 
-                if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION))
-                    performNonLinearityCorrection(this->dark, formattedLen);
+                if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION)) {
+                    setIntegerParam(ADStatus, ADStatusCorrect);
+                    callParamCallbacks();
+                    performNonLinearityCorrection(buffers_data[DARK_SPECTRUM_BUFFER], formattedLen);
+                }
 
-                doCallbacksFloat64Array(this->dark, formattedLen, QEProDark, 0);
+                doCallbacksFloat64Array(buffers_data[DARK_SPECTRUM_BUFFER], formattedLen, QEProDark, 0);
                 setIntegerParam(QEProDarkAvailable, 1);
                 logToStatus("Collected dark spectrum", functionName);
 
@@ -760,15 +761,21 @@ void QEPro::getSpectrumThread(void* pPvt) {
                 // Subtract the dark spectrum from the reference one.
                 
                 seabreeze_get_formatted_spectrum(this->deviceIndex, &(this->errorCode),
-                                                 this->reference, formattedLen);
+                                                 buffers_data[REFERENCE_SPECTRUM_BUFFER], formattedLen);
 
-                if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE))
-                    performElectricDarkCorrection(this->reference, formattedLen);
+                if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE)) {
+                    setIntegerParam(ADStatus, ADStatusCorrect);
+                    callParamCallbacks();
+                    performElectricDarkCorrection(buffers_data[REFERENCE_SPECTRUM_BUFFER], formattedLen);
+                }
 
-                if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION))
-                    performNonLinearityCorrection(this->reference, formattedLen);
+                if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION)) {
+                    setIntegerParam(ADStatus, ADStatusCorrect);
+                    callParamCallbacks();
+                    performNonLinearityCorrection(buffers_data[REFERENCE_SPECTRUM_BUFFER], formattedLen);
+                }
 
-                doCallbacksFloat64Array(this->reference, formattedLen, QEProReference, 0);
+                doCallbacksFloat64Array(buffers_data[REFERENCE_SPECTRUM_BUFFER], formattedLen, QEProReference, 0);
                 setIntegerParam(QEProRefAvailable, 1);
                 logToStatus("Collected reference spectrum.", functionName);
 
@@ -783,84 +790,103 @@ void QEPro::getSpectrumThread(void* pPvt) {
                     errLogToStatus(
                         "Reference and dark spectra required for selected mode!",
                         functionName);
-                    setIntegerParam(QEProCollect, QEPRO_IDLE);
+                    setIntegerParam(ADAcquire, 0);
                 } else if (correction == QEPRO_CORRECTION_DARK && darkAvailable != 1) {
                     errLogToStatus("Dark spectrum required for sleected mode!",
                                    functionName);
-                    setIntegerParam(QEProCollect, QEPRO_IDLE);
+                    setIntegerParam(ADAcquire, 0);
                 } else {
                     // Collect our sample spectrum
                     seabreeze_get_formatted_spectrum(this->deviceIndex, &(this->errorCode),
-                                                     this->sample, formattedLen);
+                                                     buffers_data[SAMPLE_SPECTRUM_BUFFER], formattedLen);
 
                     // Perform EDC and NLC corrections if supported and selected
-                    if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE))
-                        performElectricDarkCorrection(this->sample, formattedLen);
+                    if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE)) {
+                        setIntegerParam(ADStatus, ADStatusCorrect);
+                        callParamCallbacks();
+                        performElectricDarkCorrection(buffers_data[SAMPLE_SPECTRUM_BUFFER], formattedLen);
+                    }
 
-                    if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION))
-                        performNonLinearityCorrection(this->sample, formattedLen);
+                    if (nonLinearityCorrection && checkFeature(HAS_NONLINEARITY_CORRECTION)) {
+                        setIntegerParam(ADStatus, ADStatusCorrect);
+                        callParamCallbacks();
+                        performNonLinearityCorrection(buffers_data[SAMPLE_SPECTRUM_BUFFER], formattedLen);
+                    }
 
                     // Perform any selected dark/reference correction or absorbtion calculations
                     if (spectrumType == QEPRO_SPECTRUM_ABSORBTION){
-                        calculateAbsorbtion(this->output, this->sample, this->dark, this->reference, formattedLen);
+                        calculateAbsorbtion(buffers_data[OUTPUT_SPECTRUM_BUFFER],
+                                            buffers_data[SAMPLE_SPECTRUM_BUFFER],
+                                            buffers_data[DARK_SPECTRUM_BUFFER],
+                                            buffers_data[REFERENCE_SPECTRUM_BUFFER],
+                                            formattedLen);
                     } else if (correction == QEPRO_CORRECTION_REF) {
                         // For reference correction we have:
                         // final =  raw - dark - ( rawReference - dark )
-                        subtractSpectra(this->output, this->sample, this->reference,
+                        subtractSpectra(buffers_data[OUTPUT_SPECTRUM_BUFFER],
+                                        buffers_data[SAMPLE_SPECTRUM_BUFFER],
+                                        buffers_data[REFERENCE_SPECTRUM_BUFFER],
                                         formattedLen, true);
                     } else if (correction == QEPRO_CORRECTION_DARK) {
                         // For dark correction subtract the dark spectrum
-                        subtractSpectra(this->output, this->sample, this->dark,
+                        subtractSpectra(buffers_data[OUTPUT_SPECTRUM_BUFFER],
+                                        buffers_data[SAMPLE_SPECTRUM_BUFFER],
+                                        buffers_data[DARK_SPECTRUM_BUFFER],
                                         formattedLen, true);
                     } else {
                         // If we don't apply corrections, just feed out the raw spectrum
-                        memcpy(this->output, this->sample, formattedLen * sizeof(double));
+                        memcpy(buffers_data[OUTPUT_SPECTRUM_BUFFER],
+                               buffers_data[SAMPLE_SPECTRUM_BUFFER],
+                               formattedLen * sizeof(double));
                     }
 
+                    setIntegerParam(ADStatus, ADStatusReadout);
+                    callParamCallbacks();
+
                     // Increment our spectra collected counter by one
-                    spectraCollected++;
-                    setIntegerParam(QEProSpectraCollected, spectraCollected);
+                    spectraAcquired++;
+                    setIntegerParam(ADNumImagesCounter, spectraAcquired);
 
                     // In single mode, or if the num spectra to average is one, just output the
                     // final spectrum In average or continuous modes, compute average first, then
                     // output.
-                    if (collectionMode == QEPRO_ACQUISITION_SINGLE || numSpectraToAverage == 1) {
+                    if (imageMode == ADImageSingle || numSpectraToAverage == 1) {
                         logToStatus("Wrote out spectrum.", functionName);
-                        doCallbacksFloat64Array(this->sample, formattedLen,
+                        doCallbacksFloat64Array(buffers_data[SAMPLE_SPECTRUM_BUFFER], formattedLen,
                                                 QEProSample, 0);
-                        doCallbacksFloat64Array(this->output, formattedLen, QEProOutput, 0);
-                    } else if (collectionMode == QEPRO_ACQUISITION_AVERAGE ||
-                               collectionMode == QEPRO_ACQUISITION_CONTINUOUS) {
+                        doCallbacksFloat64Array(buffers_data[OUTPUT_SPECTRUM_BUFFER], formattedLen, QEProOutput, 0);
+                    } else if (imageMode == ADImageMultiple ||
+                               imageMode == ADImageContinuous) {
                         // Add collected spectrum to average
                         for (int i = 0; i < formattedLen; i++) {
-                            this->averaged[i] += this->output[i];
-                            this->averagedSample[i] += this->sample[i];
+                            buffers_data[AVERAGED_SPECTRUM_BUFFER][i] += buffers_data[OUTPUT_SPECTRUM_BUFFER][i];
+                            buffers_data[AVERAGED_SAMPLE_SPECTRUM_BUFFER][i] += buffers_data[SAMPLE_SPECTRUM_BUFFER][i];
                         }
 
-                        if (spectraCollected == numSpectraToAverage) {
+                        if (spectraAcquired == numSpectraToAverage) {
                             // calculate the final averages for each value
                             for (int i = 0; i < formattedLen; i++) {
-                                this->averaged[i] =
-                                    this->averaged[i] / numSpectraToAverage;
-                                this->averagedSample[i] = 
-                                    this->averagedSample[i] / numSpectraToAverage;
+                                buffers_data[AVERAGED_SPECTRUM_BUFFER][i] =
+                                    buffers_data[AVERAGED_SPECTRUM_BUFFER][i] / numSpectraToAverage;
+                                buffers_data[AVERAGED_SAMPLE_SPECTRUM_BUFFER][i] =
+                                    buffers_data[AVERAGED_SAMPLE_SPECTRUM_BUFFER][i] / numSpectraToAverage;
                             }
 
-                            doCallbacksFloat64Array(this->averaged, formattedLen,
+                            doCallbacksFloat64Array(buffers_data[AVERAGED_SPECTRUM_BUFFER], formattedLen,
                                                     QEProOutput, 0);
-                            doCallbacksFloat64Array(this->averagedSample, formattedLen,
+                            doCallbacksFloat64Array(buffers_data[AVERAGED_SAMPLE_SPECTRUM_BUFFER], formattedLen,
                                                     QEProSample, 0);
                             logToStatus("Wrote out averaged output spectrum.", functionName);
                             // Reset average buffer back to 0s
                             for (int i = 0; i < formattedLen; i++) {
-                                this->averaged[i] = 0;
-                                this->averagedSample[i] = 0;
+                                buffers_data[AVERAGED_SPECTRUM_BUFFER][i] = 0;
+                                buffers_data[AVERAGED_SAMPLE_SPECTRUM_BUFFER][i] = 0;
                             }
 
                             // In continuous mode set number of spectra back to 0 for averaging
                             // purposes.
-                            if (collectionMode == QEPRO_ACQUISITION_CONTINUOUS)
-                                setIntegerParam(QEProSpectraCollected, 0);
+                            if (imageMode == ADImageContinuous)
+                                setIntegerParam(ADNumImagesCounter, 0);
                         }
                     }
                 }
@@ -873,7 +899,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
    //             if (wavelengthsAvailable == 0 && collectedSpectrum == 1){
                     // Get our wavelengths array 
                     seabreeze_get_wavelengths(this->deviceIndex, &(this->errorCode),
-                                              this->wavelengths, formattedLen);
+                                              buffers_data[WAVELENGTHS_BUFFER], formattedLen);
 
                     // X-axis callback, convert to Raman if requested, otherwise push out
                     // wavelengths (in nm)
@@ -881,24 +907,25 @@ void QEPro::getSpectrumThread(void* pPvt) {
                         // Convert wavelength nanometers to raman shift
                         for (int i = 0; i < formattedLen; i++) {
                             // TODO 522 "LASER" shouldn't be hard-coded.
-                            this->wavelengths[i] = (1. / 522 - 1. / this->wavelengths[i]) * 10e7;
+                            buffers_data[WAVELENGTHS_BUFFER][i] = (1. / 522 - 1. / buffers_data[WAVELENGTHS_BUFFER][i]) * 10e7;
                         }
                     }
-                    doCallbacksFloat64Array(this->wavelengths, formattedLen, QEProXAxis, 0);
+                    doCallbacksFloat64Array(buffers_data[WAVELENGTHS_BUFFER], formattedLen, QEProXAxis, 0);
       //              setIntegerParam(QEProXAxisAvailable, 1);
      //           }
 
             // In single mode, or if we collected a dark/reference frame, stop after one grab
             // In average mode, stop after we collect one average set.
             // In continuous mode we don't stop until the user specifies
-            if (collectionMode == QEPRO_ACQUISITION_SINGLE || (spectrumType != QEPRO_SPECTRUM_CORRECTED_SAMPLE && spectrumType != QEPRO_SPECTRUM_ABSORBTION)) {
-                setIntegerParam(QEProCollect, QEPRO_IDLE);
-            } else if (spectraCollected == numSpectraToAverage &&
-                       collectionMode == QEPRO_ACQUISITION_AVERAGE) {
-                setIntegerParam(QEProCollect, QEPRO_IDLE);
+            if (imageMode == ADImageSingle || (spectrumType != QEPRO_SPECTRUM_CORRECTED_SAMPLE && spectrumType != QEPRO_SPECTRUM_ABSORBTION)) {
+                setIntegerParam(ADAcquire, 0);
+            } else if (spectraAcquired == numSpectraToAverage &&
+                       imageMode == ADImageMultiple) {
+                setIntegerParam(ADAcquire, 0);
             }
         }
 
+        setIntegerParam(ADStatus, ADStatusIdle);
         callParamCallbacks();
 
         // Check again if device is connected before loop again
@@ -915,9 +942,12 @@ void QEPro::getSpectrumThread(void* pPvt) {
 //----------------------------------------------------------------------------
 
 QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
-    : asynPortDriver(
-          portName, 1, /* maxAddr */
-          (int)NUM_QEPRO_PARAMS,
+    : ADDriver(
+          portName, /* portName */
+          1,        /* maxAddr */
+          (int)NUM_QEPRO_PARAMS, /* numParams */
+          0, /* maxBuffers (placeholder value) */
+          0, /* maxMemory (placeholder value)*/
           asynInt32Mask | asynFloat64Mask | asynFloat64ArrayMask | asynDrvUserMask |
               asynOctetMask, /* Interface mask */
           asynInt32Mask | asynFloat64Mask | asynFloat64ArrayMask |
@@ -927,14 +957,15 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
           0, /* Default priority */
           0) /* Default stack size*/
 {
+    setIntegerParam(ADStatus, ADStatusInitializing);
+    callParamCallbacks();
+
     static const char* functionName = "QEPro";
 
     this->deviceIndex = deviceIndex;
 
     if (debugEnable == 1) seabreeze_set_logfile(NULL, 0);
 
-    createParam(QEProSerialString, asynParamOctet, &QEProSerial);
-    createParam(QEProModelString, asynParamOctet, &QEProModel);
     createParam(QEProConnectedString, asynParamInt32, &QEProConnected);
     createParam(QEProFeaturesString, asynParamInt32, &QEProFeatures);
     createParam(QEProStrobeString, asynParamInt32, &QEProStrobe);
@@ -957,8 +988,6 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
 
     // Thermo Electric Cooler
     createParam(QEProTECString, asynParamInt32, &QEProTEC);
-    createParam(QEProTECTempString, asynParamFloat64, &QEProTECTemp);
-    createParam(QEProCurrTECTempString, asynParamFloat64, &QEProCurrTECTemp);
 
     // Spectra Params
     createParam(QEProSampleSpectrumString, asynParamFloat64Array, &QEProSample);
@@ -977,20 +1006,12 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
     createParam(QEProEDCString, asynParamInt32, &QEProEDC);
     createParam(QEProNLCString, asynParamInt32, &QEProNLC);
 
-    createParam(QEProNumSpectraString, asynParamInt32, &QEProNumSpectra);
-    createParam(QEProSpectraCollectedString, asynParamInt32, &QEProSpectraCollected);
-
-    createParam(QEProCollectModeString, asynParamInt32, &QEProCollectMode);
-    createParam(QEProCollectString, asynParamInt32, &QEProCollect);
     createParam(QEProXAxisFormatString, asynParamInt32, &QEProXAxisFormat);
 
     createParam(QEProTriggerModeString, asynParamInt32, &QEProTriggerMode);
 
     createParam(QEProCheckStatusString, asynParamInt32, &QEProCheckStatus);
     createParam(QEProShutterString, asynParamInt32, &QEProShutter);
-
-    createParam(QEProStatusString, asynParamInt32, &QEProStatus);
-    createParam(QEProStatusMsgString, asynParamOctet, &QEProStatusMsg);
 
     asynStatus connected = connectToDeviceQEPro();
     if (connected == asynSuccess) {

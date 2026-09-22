@@ -1,14 +1,13 @@
 #ifndef QEPRO_H
 #define QEPRO_H
+#include <ADDriver.h>
 #include <asynPortDriver.h>
 #include <epicsExport.h>
 #include <iocsh.h>
 
-#include "api/SeaBreezeWrapper.h"
+#include <array>
 
-// Device information
-#define QEProSerialString "QEPRO_SERIAL"
-#define QEProModelString "QEPRO_MODEL"
+#include "api/SeaBreezeWrapper.h"
 
 // Device connected & features
 #define QEProConnectedString "QEPRO_CONNECTED"
@@ -26,9 +25,7 @@
 #define QEProNLCString "QEPRO_NLC"
 
 // Thermo-Electric Cooler
-#define QEProTECTempString "QEPRO_TEC_TEMP"
 #define QEProTECString "QEPRO_TEC"
-#define QEProCurrTECTempString "QEPRO_CURR_TEC_TEMP"
 
 // Light sources feature
 #define QEProLightSourceString "QEPRO_LIGHT_SOURCE"
@@ -42,9 +39,7 @@
 #define QEProBuffElementCountString "QEPRO_BUFF_ELEMENT_CNT"
 
 // Acquisiton settings
-#define QEProCollectModeString "QEPRO_COLLECT_MODE"
 #define QEProTriggerModeString "QEPRO_TRIGGER_MODE"
-#define QEProCollectString "QEPRO_COLLECT"
 #define QEProSubtractFormatString "QEPRO_SUB_FORMAT"
 #define QEProCorrectionString "QEPRO_CORRECTION"
 #define QEProSpectrumTypeString "QEPRO_SPECTRUM_TYPE"
@@ -61,14 +56,8 @@
 #define QEProSampleSpectrumString "QEPRO_SAMPLE_SPECT"
 #define QEProOutputSpectrumString "QEPRO_OUTPUT_SPECT"
 
-// Counter for spectra collected
-#define QEProNumSpectraString "QEPRO_NUM_SPECTRA"
-#define QEProSpectraCollectedString "QEPRO_SPECTRA_COLLECTED"
-
 // Status/error state records
 #define QEProCheckStatusString "QEPRO_CHECK_STATUS"
-#define QEProStatusString "QEPRO_ERR"
-#define QEProStatusMsgString "QEPRO_STATUS"
 
 typedef enum QEProFeature {
     HAS_NONLINEARITY_CORRECTION = 32,
@@ -85,12 +74,6 @@ typedef enum QEProCorrection {
     QEPRO_CORRECTION_REF = 2
 } QEProCorrection_t;
 
-typedef enum QEProAcquisitionMode {
-    QEPRO_ACQUISITION_SINGLE = 0,
-    QEPRO_ACQUISITION_AVERAGE = 1,
-    QEPRO_ACQUISITION_CONTINUOUS = 2
-} QEProAcquisitionMode_t;
-
 typedef enum QEProSpectrumType {
     QEPRO_SPECTRUM_DARK = 0,
     QEPRO_SPECTRUM_REFERENCE = 1,
@@ -98,11 +81,20 @@ typedef enum QEProSpectrumType {
     QEPRO_SPECTRUM_ABSORBTION = 3
 } QEProSpectrumType_t;
 
-typedef enum QEProCollectionStatus { QEPRO_IDLE = 0, QEPRO_COLLECTING = 1 } QEProCollectionStatus_t;
+typedef enum QEProBuffersId {
+    DARK_SPECTRUM_BUFFER = 0,
+    REFERENCE_SPECTRUM_BUFFER = 1,
+    SAMPLE_SPECTRUM_BUFFER = 2,
+    OUTPUT_SPECTRUM_BUFFER = 3,
+    AVERAGED_SPECTRUM_BUFFER = 4,
+    AVERAGED_SAMPLE_SPECTRUM_BUFFER = 5,
+    WAVELENGTHS_BUFFER = 6
+} QEProBuffersId_t;
 
+#define NUM_BUFFERS 6
 #define MAX_DARK_PIXELS 32
 
-class QEPro : public asynPortDriver {
+class QEPro : public ADDriver {
    public:
     QEPro(const char* portName, int deviceIndex, int debugEnable);
     ~QEPro();
@@ -124,10 +116,8 @@ class QEPro : public asynPortDriver {
     virtual void getSpectrumThread(void*);
 
    protected:
-    int QEProSerial;
-#define FIRST_QEPRO_PARAM QEProSerial
-    int QEProModel;
     int QEProFeatures;
+#define FIRST_QEPRO_PARAM QEProFeatures
 
     // Integration Time
     int QEProIntegrationTime;
@@ -139,9 +129,7 @@ class QEPro : public asynPortDriver {
     int QEProConnected;
 
     // Thermal Electric Cooler
-    int QEProTECTemp;
     int QEProTEC;
-    int QEProCurrTECTemp;
 
     // Light Source Feature
     int QEProLightSource;
@@ -165,8 +153,6 @@ class QEPro : public asynPortDriver {
     int QEProEDC;
     int QEProNLC;
     // Collection Specific Params
-    int QEProCollect;
-    int QEProCollectMode;
     int QEProXAxisFormat;
 
     int QEProMinBuffCapacity;
@@ -174,15 +160,10 @@ class QEPro : public asynPortDriver {
     int QEProBuffCapacity;
     int QEProBuffElementCount;
 
-    int QEProNumSpectra;
-    int QEProSpectraCollected;
-
     int QEProTriggerMode;
     int QEProShutter;
     int QEProCheckStatus;
-    int QEProStatus;
-    int QEProStatusMsg;
-#define LAST_QEPRO_PARAM QEProStatusMsg
+#define LAST_QEPRO_PARAM QEProCheckStatus
    private:
     int deviceIndex;
     int flag;
@@ -194,13 +175,8 @@ class QEPro : public asynPortDriver {
     float nonLinearityCoeffs[8] = {0};
 
     // Buffers (allocated once on startup for better perf)
-    double* wavelengths;
-    double* dark;
-    double* reference;
-    double* sample;
-    double* output;
-    double* averaged;
-    double* averagedSample;
+    std::array<NDArray*, NUM_BUFFERS> buffers;
+    std::array<double*, NUM_BUFFERS> buffers_data;
 
     // Functions for allocating memories for the various spectrum buffers
     void allocateBuffers();

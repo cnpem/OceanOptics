@@ -1,0 +1,82 @@
+name: Base image build
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+
+  pull_request:
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    strategy:
+      matrix:
+        image:
+          - { dir: base, name: lnls-debian-epics-7 }
+          - { dir: base/musl, name: lnls-alpine-3-epics-7 }
+    env:
+      TAG: ${{ github.event_name == 'push' && github.ref_name || github.head_ref }}
+      REGISTRY: ghcr.io/${{ github.repository_owner }}
+      IMAGE: ${{ matrix.image.name }}
+      SOURCE: https://github.com/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+      - name: Log in to registry
+        if: github.event_name == 'push' && vars.PUSH_TO_REGISTRY == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push tagged image
+        uses: docker/bake-action@v7
+        with:
+          source: ${{ matrix.image.dir }}
+          files: docker-compose.yml
+          load: true
+          set: |
+            *.cache-from=type=gha,scope=${{ matrix.image.name }}
+            *.cache-to=type=gha,mode=max,scope=${{ matrix.image.name }}
+          push: ${{ github.event_name == 'push' && vars.PUSH_TO_REGISTRY == 'true' && github.ref_type == 'tag' }}
+      - name: Point IOC Dockerfile to image that was just built
+        run: sed -i -E "s/v[0-9]+\.[0-9]+\.[0-9]+-dev/$TAG/" Dockerfile
+      - name: Configure builder using docker driver
+        uses: docker/setup-buildx-action@v4
+        id: dockerbuilder
+        with:
+          driver: docker
+      - name: Build and push included IOC images
+        if: ${{ matrix.image.name == 'lnls-debian-epics-7' }}
+        uses: docker/bake-action@v7
+        with:
+          source: images/
+          builder: ${{ steps.dockerbuilder.outputs.name }}
+          allow: fs.read=../Dockerfile
+          files: |
+            docker-compose-epics-base.yml
+            docker-compose-opcua.yml
+            docker-compose-motornewport.yml
+            docker-compose-motorpigcs2.yml
+            docker-compose-motorparker.yml
+            docker-compose-mca-amptek.yml
+            docker-compose-ca-gateway.yml
+            docker-compose-pmac.yml
+            docker-compose-pvagw.yml
+            docker-compose-rgamv2.yml
+            docker-compose-softioc.yml
+            docker-compose-twincat-ads.yml
+          push: ${{ github.event_name == 'push' && vars.PUSH_TO_REGISTRY == 'true' && github.ref_type == 'tag' }}
+  pre_commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install packages
+        run: sudo apt update -y && sudo apt install -y pre-commit shfmt
+      - name: Check pre-commit hooks
+        run: pre-commit run --show-diff-on-failure --color=always --all-files

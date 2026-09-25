@@ -1,0 +1,12 @@
+services:
+  epics-base:
+    image: ${REGISTRY:-ghcr.io/cnpem}/lnls-alpine-3-epics-7:$TAG
+    build:
+      context: ../
+      dockerfile: musl/Dockerfile
+      labels:
+        org.opencontainers.image.revision: ${TAG}
+        org.opencontainers.image.source: ${SOURCE:-https://github.com/cnpem/epics-in-docker}
+        org.opencontainers.image.description: "EPICS base and modules build image for fully static executables"
+      args:
+        JOBS: ${JOBS:--1}

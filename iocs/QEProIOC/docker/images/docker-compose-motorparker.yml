@@ -1,0 +1,31 @@
+services:
+  motor-parker:
+    image: ghcr.io/cnpem/motor-parker-epics-ioc:$TAG
+    build:
+      context: ./
+      dockerfile: ../Dockerfile
+      target: dynamic-link
+      labels:
+        org.opencontainers.image.source: https://github.com/cnpem/epics-in-docker
+      args:
+        IOC_CREATE: 1
+        REPONAME: Parker
+        RUNDIR: /opt/Parker/iocBoot/iocParker
+        IOC_DBDS:
+          asyn.dbd
+          drvAsynSerialPort.dbd
+          drvAsynIPPort.dbd
+          motorSupport.dbd
+          ParkerSupport.dbd
+        IOC_LIBS:
+          Parker
+          motor
+          asyn
+        IOC_DBS:
+          $(MOTOR)/db/ACRAuxBi.template
+          $(MOTOR)/db/ACRAuxBoRBV.template
+          $(MOTOR)/db/ACRAuxBo.template
+          $(MOTOR)/db/ACRAuxLi.template
+          $(MOTOR)/db/ACRAuxRead.template
+          $(MOTOR)/db/ACRAux.template
+          $(MOTOR)/db/OEMSupport.template

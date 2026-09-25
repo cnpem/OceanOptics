@@ -1,0 +1,28 @@
+services:
+  motor-pigcs2:
+    image: ghcr.io/cnpem/motor-pigcs2-epics-ioc:$TAG
+    build:
+      context: ./
+      dockerfile: ../Dockerfile
+      target: dynamic-link
+      labels:
+        org.opencontainers.image.source: https://github.com/cnpem/epics-in-docker
+      args:
+        IOC_CREATE: 1
+        REPONAME: PIGCS2
+        RUNDIR: /opt/PIGCS2/iocBoot/iocPIGCS2
+        IOC_DBDS:
+          asyn.dbd
+          drvAsynSerialPort.dbd
+          drvAsynIPPort.dbd
+          motorSupport.dbd
+          PI_GCS2Support.dbd
+        IOC_LIBS:
+          PI_GCS2Support
+          motor
+          asyn
+        IOC_DBS:
+          $(MOTOR)/db/PI_Support.db
+          $(MOTOR)/db/PI_SupportCL.db
+          $(MOTOR)/db/PI_SupportCtrl.db
+          $(MOTOR)/db/PI_SupportError.db

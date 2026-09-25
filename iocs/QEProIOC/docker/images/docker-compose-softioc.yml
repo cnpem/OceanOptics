@@ -1,0 +1,22 @@
+services:
+  stream:
+    image: ghcr.io/cnpem/softioc-epics-ioc:$TAG
+    build:
+      context: ./
+      dockerfile: ../Dockerfile
+      target: dynamic-link
+      labels:
+        org.opencontainers.image.source: https://github.com/cnpem/epics-in-docker
+      args:
+        RUNTIME_PACKAGES: python3-numpy
+        IOC_CREATE: 1
+        REPONAME: softIOC
+        RUNDIR: /opt/softIOC/iocBoot/iocsoftIOC
+        IOC_DBDS:
+          pyDevSup.dbd
+          sscan.dbd
+          calc.dbd
+        IOC_LIBS:
+          sscan
+          calc
+          pyDevSup$(PY_LD_VER)

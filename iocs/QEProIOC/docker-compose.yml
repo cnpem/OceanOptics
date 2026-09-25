@@ -1,0 +1,13 @@
+services:
+  ioc:
+    image: ghcr.io/nsls2/oceanoptics:${TAG}
+    build:
+      context: ./
+      dockerfile: docker/Dockerfile
+      target: dynamic-link
+      labels:
+        org.opencontainers.image.source: https://github.com/NSLS2/OceanOptics
+      args:
+        REPONAME: QEProIOC
+        RUNDIR: /opt/QEProIOC/iocBoot/iocQEPro
+        RUNTIME_PACKAGES: libusb-0.1-4

@@ -26,7 +26,7 @@
 
 // Include Seabreeze api wrapper
 #include "ADDriver.h"
-#include "api/SeaBreezeWrapper.h"
+#include <api/OceanDirectAPI.h>
 
 // Error message formatters
 #define ERR(msg)                                                                                 \

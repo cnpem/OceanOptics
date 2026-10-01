@@ -7,7 +7,7 @@
 
 #include <array>
 
-#include "api/SeaBreezeWrapper.h"
+#include <api/OceanDirectAPI.h>
 
 // Device connected & features
 #define QEProConnectedString "QEPRO_CONNECTED"

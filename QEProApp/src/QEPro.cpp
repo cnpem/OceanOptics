@@ -171,12 +171,12 @@ asynStatus QEPro::disconnectFromDeviceQEPro() {
     // Free up any data allocated by driver here, and call the vendor libary to disconnect
 
     printf("Closing spectrometer with index %ld...\n", this->deviceIndex);
-    this->flag = seabreeze_close_spectrometer(this->deviceIndex, &(this->errorCode));
+    odapi_close_device(this->deviceIndex, &(this->errorCode));
     printf("Result is [%s]\n", getErrorString(this->errorCode));
     setIntegerParam(QEProConnected, 0);
     callParamCallbacks();
 
-    seabreeze_shutdown();
+    odapi_shutdown();
 
     return asynSuccess;
 }

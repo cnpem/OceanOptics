@@ -72,7 +72,7 @@ const char* driverName = "QEPro";
  * make sure to make the same edit to the constructor below
  *
  */
-extern "C" int QEProConfig(const char* portName, int deviceIndex, int debugEnable) {
+extern "C" int QEProConfig(const char* portName, long deviceIndex, int debugEnable) {
     new QEPro(portName, deviceIndex, debugEnable);
     return (asynSuccess);
 }
@@ -143,7 +143,7 @@ asynStatus QEPro::connectToDeviceQEPro() {
     const char* functionName = "connectToDeviceQEPro";
     bool connected = false;
 
-    LOG_ARGS("Opening spectrometer with index %d...", this->deviceIndex);
+    LOG_ARGS("Opening spectrometer with index %ld...", this->deviceIndex);
     flag = seabreeze_open_spectrometer(this->deviceIndex, &(this->errorCode));
     LOG_ARGS("Result is (%d) [%s]", flag, getErrorString(this->errorCode));
 
@@ -170,7 +170,7 @@ asynStatus QEPro::disconnectFromDeviceQEPro() {
 
     // Free up any data allocated by driver here, and call the vendor libary to disconnect
 
-    printf("Closing spectrometer with index %d...\n", this->deviceIndex);
+    printf("Closing spectrometer with index %ld...\n", this->deviceIndex);
     this->flag = seabreeze_close_spectrometer(this->deviceIndex, &(this->errorCode));
     printf("Result is [%s]\n", getErrorString(this->errorCode));
     setIntegerParam(QEProConnected, 0);
@@ -923,7 +923,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
 // QEPro Constructor/Destructor
 //----------------------------------------------------------------------------
 
-QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
+QEPro::QEPro(const char* portName, long deviceIndex, int debugEnable)
     : ADDriver(
           portName, /* portName */
           1,        /* maxAddr */

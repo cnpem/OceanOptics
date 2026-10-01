@@ -946,7 +946,8 @@ QEPro::QEPro(const char* portName, long deviceIndex, int debugEnable)
 
     this->deviceIndex = deviceIndex;
 
-    if (debugEnable == 1) seabreeze_set_logfile(NULL, 0);
+    // Initialize API
+    odapi_initialize();
 
     createParam(QEProConnectedString, asynParamInt32, &QEProConnected);
     createParam(QEProFeaturesString, asynParamInt32, &QEProFeatures);

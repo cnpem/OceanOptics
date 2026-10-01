@@ -144,10 +144,10 @@ asynStatus QEPro::connectToDeviceQEPro() {
     bool connected = false;
 
     LOG_ARGS("Opening spectrometer with index %ld...", this->deviceIndex);
-    flag = seabreeze_open_spectrometer(this->deviceIndex, &(this->errorCode));
-    LOG_ARGS("Result is (%d) [%s]", flag, getErrorString(this->errorCode));
+    odapi_open_device(this->deviceIndex, &(this->errorCode));
+    LOG_ARGS("Result is (%d) [%s]", this->errorCode, getErrorString(this->errorCode));
 
-    if (flag == 0) {
+    if (this->errorCode == 0) {
         setIntegerParam(QEProConnected, 1);
         callParamCallbacks();
         return asynSuccess;

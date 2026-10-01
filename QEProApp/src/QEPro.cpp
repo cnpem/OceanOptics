@@ -220,12 +220,12 @@ asynStatus QEPro::getDeviceInformation() {
     LOG("Collecting device information");
 
     char type[16];
-    seabreeze_get_model(this->deviceIndex, &(this->errorCode), type, sizeof(type));
+    odapi_adv_get_device_model_string(this->deviceIndex, &(this->errorCode), type, sizeof(type));
     setStringParam(ADModel, type);
 
     // Done twice to avoid lockup (not sure if needed, was in SDK example)
     char serial_number[32];
-    this->flag = seabreeze_get_serial_number(this->deviceIndex, &(this->errorCode), serial_number,
+    this->flag = odapi_get_serial_number(this->deviceIndex, &(this->errorCode), serial_number,
                                              sizeof(serial_number));
     serial_number[31] = '\0';
     // this->flag = seabreeze_get_serial_number(this->deviceIndex, &(this->errorCode),
@@ -234,16 +234,16 @@ asynStatus QEPro::getDeviceInformation() {
 
     if (checkFeature(HAS_LIGHTSOURCE_FEATURE)) {
         int light_source_count =
-            seabreeze_get_light_source_count(this->deviceIndex, &(this->errorCode));
+            odapi_adv_get_light_source_count(this->deviceIndex, &(this->errorCode));
         setIntegerParam(QEProLightSourceCount, light_source_count);
     } else
         setIntegerParam(QEProLightSourceCount, 0);
 
     long minIntegrationTime, maxIntegrationTime;
     minIntegrationTime =
-        seabreeze_get_min_integration_time_microsec(this->deviceIndex, &(this->errorCode));
+        odapi_get_minimum_integration_time_micros(this->deviceIndex, &(this->errorCode));
     maxIntegrationTime =
-        seabreeze_get_max_integration_time_microsec(this->deviceIndex, &(this->errorCode));
+        odapi_get_maximum_integration_time_micros(this->deviceIndex, &(this->errorCode));
     setDoubleParam(QEProMinIntegrationTime, (float)(minIntegrationTime / 1000));
     setDoubleParam(QEProMaxIntegrationTime, (float)(maxIntegrationTime / 1000));
 
@@ -252,10 +252,10 @@ asynStatus QEPro::getDeviceInformation() {
     unsigned long minCapacity = 0;
     unsigned long count = 0;
     if (checkFeature(HAS_BUFFER_FEATURE)) {
-        minCapacity = seabreeze_get_buffer_capacity_minimum(this->deviceIndex, &(this->errorCode));
-        maxCapacity = seabreeze_get_buffer_capacity_maximum(this->deviceIndex, &(this->errorCode));
-        capacity = seabreeze_get_buffer_capacity(this->deviceIndex, &(this->errorCode));
-        count = seabreeze_get_buffer_element_count(this->deviceIndex, &(this->errorCode));
+        minCapacity = odapi_adv_get_data_buffer_capacity_minimum(this->deviceIndex, &(this->errorCode));
+        maxCapacity = odapi_adv_get_data_buffer_capacity_maximum(this->deviceIndex, &(this->errorCode));
+        capacity = odapi_adv_get_data_buffer_capacity(this->deviceIndex, &(this->errorCode));
+        count = odapi_adv_get_data_buffer_number_of_elements(this->deviceIndex, &(this->errorCode));
     }
     setIntegerParam(QEProMaxBuffCapacity, (int)maxCapacity);
     setIntegerParam(QEProMinBuffCapacity, (int)minCapacity);
@@ -263,12 +263,12 @@ asynStatus QEPro::getDeviceInformation() {
     setIntegerParam(QEProBuffElementCount, (int)count);
 
     if (checkFeature(HAS_EDC_FEATURE)) {
-        this->darkPixelCount = seabreeze_get_electric_dark_pixel_indices(
+        this->darkPixelCount = odapi_get_electric_dark_pixel_indices(
             this->deviceIndex, &(this->errorCode), this->darkPixelIndices, MAX_DARK_PIXELS);
     }
 
     int formattedLen =
-        seabreeze_get_formatted_spectrum_length(this->deviceIndex, &(this->errorCode));
+        odapi_get_formatted_spectrum_length(this->deviceIndex, &(this->errorCode));
     // int unformattedLen = seabreeze_get_unformatted_spectrum_length(this->deviceIndex,
     // &(this->errorCode));
     setIntegerParam(QEProFormattedSpectLen, formattedLen);

@@ -287,13 +287,13 @@ asynStatus QEPro::getDeviceInformation() {
 void QEPro::checkDeviceFeatures() {
     const char* functionName = "checkDeviceFeatures";
     int features = 0;
-    seabreeze_set_tec_enable(this->deviceIndex, &(this->errorCode), 0);
+    odapi_adv_tec_set_enable(this->deviceIndex, &(this->errorCode), 0);
     if (this->errorCode == 0)
         features = features | HAS_TEC_FEATURE;
     else
         WARN("TEC feature not supported");
 
-    int minCapacity = seabreeze_get_buffer_capacity_minimum(this->deviceIndex, &(this->errorCode));
+    int minCapacity = odapi_adv_get_data_buffer_capacity_minimum(this->deviceIndex, &(this->errorCode)); // Returns unsigned long
     if (this->errorCode == 0)
         features = features | HAS_BUFFER_FEATURE;
     else
@@ -301,40 +301,18 @@ void QEPro::checkDeviceFeatures() {
 
     int test;
     int supported =
-        seabreeze_get_electric_dark_pixel_indices(this->deviceIndex, &(this->errorCode), &test, 1);
+        odapi_get_electric_dark_pixel_indices(this->deviceIndex, &(this->errorCode), &test, 1);
     if (0 == supported)
         WARN("Electric dark correction is not supported for this device.");
     else
         features = features | HAS_EDC_FEATURE;
 
-    int has_irrad = seabreeze_has_irrad_collection_area(this->deviceIndex, &(this->errorCode));
-    if (has_irrad == 0)
-        WARN("IRRAD collection area not stored on device");
-    else
-        features = features | HAS_IRRAD_COLLECT_AREA;
-
     int light_source_count =
-        seabreeze_get_light_source_count(this->deviceIndex, &(this->errorCode));
+        odapi_adv_get_light_source_count(this->deviceIndex, &(this->errorCode));
     if (this->errorCode == 0)
         features = features | HAS_LIGHTSOURCE_FEATURE;
     else
         WARN("Light source feature not supported");
-
-    int copied;
-    int slotIndex;
-    unsigned char eepromBytes[24] = {0};
-    for (int i = 0, slotIndex = 6; i < 8; i++, slotIndex++) {
-        copied = seabreeze_read_eeprom_slot(this->deviceIndex, &(this->errorCode), slotIndex,
-                                            eepromBytes, 24);
-        if (copied == 0) {
-            WARN("Non-Linearity correction feature not supported.");
-            break;
-        }
-        eepromBytes[copied] = '\0';
-        this->nonLinearityCoeffs[i] = atof((char*)eepromBytes);
-        // If we get to the last iteration of the loop without breaking, we have NLC
-        if (i == 7) features = features | HAS_NONLINEARITY_CORRECTION;
-    }
 
     setIntegerParam(QEProFeatures, features);
 }

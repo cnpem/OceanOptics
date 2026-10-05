@@ -408,10 +408,10 @@ asynStatus QEPro::checkStatus() {
 
     double temp = 0;
     if (checkFeature(HAS_TEC_FEATURE))
-        temp = seabreeze_read_tec_temperature(this->deviceIndex, &(this->errorCode));
+        temp = odapi_adv_tec_get_temperature_degrees_C(this->deviceIndex, &(this->errorCode));
     setDoubleParam(ADTemperatureActual, temp);
     int bufferElementCount =
-        seabreeze_get_buffer_element_count(this->deviceIndex, &(this->errorCode));
+        odapi_adv_get_data_buffer_number_of_elements(this->deviceIndex, &(this->errorCode));
     setIntegerParam(QEProBuffElementCount, bufferElementCount);
     return asynSuccess;
 }

@@ -551,11 +551,11 @@ asynStatus QEPro::writeInt32(asynUser* pasynUser, epicsInt32 value) {
             errLogToStatus("Device does not support the buffer feature.", "setBuffCapacity");
         }
     } else if (function == QEProStrobe) {
-        seabreeze_set_strobe_enable(this->deviceIndex, &(this->errorCode), value);
+        odapi_adv_set_lamp_enable(this->deviceIndex, &(this->errorCode), value);
         if (this->errorCode != 0) status = asynError;
     } else if (function == QEProTEC) {
         if (checkFeature(HAS_TEC_FEATURE)) {
-            seabreeze_set_tec_enable(this->deviceIndex, &(this->errorCode), value);
+            odapi_adv_tec_set_enable(this->deviceIndex, &(this->errorCode), value);
             if (this->errorCode != 0) status = asynError;
             else {
                 setIntegerParam(QEProDarkAvailable, 0);
@@ -580,18 +580,18 @@ asynStatus QEPro::writeInt32(asynUser* pasynUser, epicsInt32 value) {
     } else if (function == QEProXAxisFormat) {
         setIntegerParam(QEProXAxisAvailable, 0);
     } else if (function == QEProTriggerMode) {
-        seabreeze_set_trigger_mode(this->deviceIndex, &(this->errorCode), value);
+        odapi_set_trigger_mode(this->deviceIndex, &(this->errorCode), value);
         if (this->errorCode != 0) status = asynError;
     } else if (function == QEProCheckStatus) {
         status = checkStatus();
     } else if (function == QEProShutter) {
-        seabreeze_set_shutter_open(this->deviceIndex, &(this->errorCode), value);
+        odapi_adv_set_shutter_open(this->deviceIndex, &(this->errorCode), value);
         if (this->errorCode != 0) status = asynError;
     } else if (function == QEProLightSource && checkFeature(HAS_LIGHTSOURCE_FEATURE)) {
         int num_light_sources;
         getIntegerParam(QEProLightSourceCount, &num_light_sources);
         for (int i = 0; i < num_light_sources; i++) {
-            seabreeze_set_light_source_enable(this->deviceIndex, &(this->errorCode), i, value);
+            odapi_adv_light_source_set_enable(this->deviceIndex, &(this->errorCode), i, value);
         }
     } else if (function == ADAcquire && value) {
         // If we start collecting, reset the number of spectra collected to 0.

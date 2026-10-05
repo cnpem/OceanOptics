@@ -85,7 +85,7 @@ extern "C" int QEProConfig(const char* portName, long deviceIndex, int debugEnab
  */
 static const char* getErrorString(int errorCode) {
     static char buffer[32];
-    seabreeze_get_error_string(errorCode, buffer, sizeof(buffer));
+    odapi_get_error_string(errorCode, buffer, sizeof(buffer));
     return buffer;
 }
 

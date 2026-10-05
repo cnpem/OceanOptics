@@ -633,14 +633,8 @@ asynStatus QEPro::writeFloat64(asynUser* pasynUser, epicsFloat64 value) {
     if (function == QEProIntegrationTime) {
         status = setIntegrationTime((double)value);
     } else if (function == ADTemperature && checkFeature(HAS_TEC_FEATURE)) {
-        seabreeze_set_tec_temperature(this->deviceIndex, &(this->errorCode), value);
+        odapi_adv_tec_set_temperature_setpoint_degrees_C(this->deviceIndex, &(this->errorCode), value);
         if (this->errorCode != 0) status = asynError;
-    } else if (function == QEProLightSourceIntensity && checkFeature(HAS_LIGHTSOURCE_FEATURE)) {
-        int num_light_sources;
-        getIntegerParam(QEProLightSourceCount, &num_light_sources);
-        for (int i = 0; i < num_light_sources; i++) {
-            seabreeze_set_light_source_intensity(this->deviceIndex, &(this->errorCode), i, value);
-        }
     } else if (function < FIRST_QEPRO_PARAM) {
         status = ADDriver::writeFloat64(pasynUser, value);
     }

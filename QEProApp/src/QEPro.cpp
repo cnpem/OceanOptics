@@ -350,8 +350,8 @@ asynStatus QEPro::setIntegrationTime(double integrationTime) {
                  maxIntegrationTime);
         status = asynError;
     } else {
-        seabreeze_set_integration_time_microsec(this->deviceIndex, &(this->errorCode),
-                                                (unsigned long)(integrationTime * 1000));
+        odapi_set_integration_time_micros(this->deviceIndex, &(this->errorCode),
+                                          (unsigned long)(integrationTime * 1000));
         if (this->errorCode == 0) {
             LOG_ARGS("Set integration time to %lf ms", integrationTime);
         } else {

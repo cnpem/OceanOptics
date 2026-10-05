@@ -381,11 +381,11 @@ asynStatus QEPro::setBufferCapacity(int capacity) {
         status = asynError;
     } else {
         // Clear the buffers first
-        seabreeze_clear_buffer(this->deviceIndex, &(this->errorCode));
+        odapi_adv_clear_data_buffer(this->deviceIndex, &(this->errorCode));
         if (capacity == currCapacity) {
             LOG_ARGS("Buffer capacity already set to %d", currCapacity);
         } else {
-            seabreeze_set_buffer_capacity(this->deviceIndex, &(this->errorCode), capacity);
+            odapi_adv_set_data_buffer_capacity(this->deviceIndex, &(this->errorCode), capacity);
             if (this->errorCode == 0) {
                 LOG_ARGS("Set buffer capacity time to %d", capacity);
             } else {

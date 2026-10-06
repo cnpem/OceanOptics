@@ -738,7 +738,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
                 }
             }
 
-            seabreeze_get_formatted_spectrum(this->deviceIndex, &(this->errorCode), getDoubleBuffer(bufferId),
+            odapi_get_formatted_spectrum(this->deviceIndex, &(this->errorCode), getDoubleBuffer(bufferId),
                                              formattedLen);
 
             if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE)) {
@@ -852,7 +852,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
 
    //             if (wavelengthsAvailable == 0 && collectedSpectrum == 1){
                     // Get our wavelengths array 
-                    seabreeze_get_wavelengths(this->deviceIndex, &(this->errorCode),
+                    odapi_get_wavelengths(this->deviceIndex, &(this->errorCode),
                                               getDoubleBuffer(WAVELENGTHS_BUFFER), formattedLen);
 
                     // X-axis callback, convert to Raman if requested, otherwise push out

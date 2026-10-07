@@ -4,6 +4,7 @@
 # Author: Jakub Wlodek
 #
 
+include "ADBase.template"
 
 record(stringin, "$(PREFIX):SERIAL") {
     field(DTYP, "asynOctetRead")

@@ -26,7 +26,7 @@
 
 // Include Seabreeze api wrapper
 #include "ADDriver.h"
-#include "api/SeaBreezeWrapper.h"
+#include <api/OceanDirectAPI.h>
 
 // Error message formatters
 #define ERR(msg)                                                                                 \
@@ -72,7 +72,7 @@ const char* driverName = "QEPro";
  * make sure to make the same edit to the constructor below
  *
  */
-extern "C" int QEProConfig(const char* portName, int deviceIndex, int debugEnable) {
+extern "C" int QEProConfig(const char* portName, long deviceIndex, int debugEnable) {
     new QEPro(portName, deviceIndex, debugEnable);
     return (asynSuccess);
 }
@@ -85,7 +85,7 @@ extern "C" int QEProConfig(const char* portName, int deviceIndex, int debugEnabl
  */
 static const char* getErrorString(int errorCode) {
     static char buffer[32];
-    seabreeze_get_error_string(errorCode, buffer, sizeof(buffer));
+    odapi_get_error_string(errorCode, buffer, sizeof(buffer));
     return buffer;
 }
 
@@ -143,11 +143,11 @@ asynStatus QEPro::connectToDeviceQEPro() {
     const char* functionName = "connectToDeviceQEPro";
     bool connected = false;
 
-    LOG_ARGS("Opening spectrometer with index %d...", this->deviceIndex);
-    flag = seabreeze_open_spectrometer(this->deviceIndex, &(this->errorCode));
-    LOG_ARGS("Result is (%d) [%s]", flag, getErrorString(this->errorCode));
+    LOG_ARGS("Opening spectrometer with index %ld...", this->deviceIndex);
+    odapi_open_device(this->deviceIndex, &(this->errorCode));
+    LOG_ARGS("Result is (%d) [%s]", this->errorCode, getErrorString(this->errorCode));
 
-    if (flag == 0) {
+    if (this->errorCode == 0) {
         setIntegerParam(QEProConnected, 1);
         callParamCallbacks();
         return asynSuccess;
@@ -170,13 +170,13 @@ asynStatus QEPro::disconnectFromDeviceQEPro() {
 
     // Free up any data allocated by driver here, and call the vendor libary to disconnect
 
-    printf("Closing spectrometer with index %d...\n", this->deviceIndex);
-    this->flag = seabreeze_close_spectrometer(this->deviceIndex, &(this->errorCode));
+    printf("Closing spectrometer with index %ld...\n", this->deviceIndex);
+    odapi_close_device(this->deviceIndex, &(this->errorCode));
     printf("Result is [%s]\n", getErrorString(this->errorCode));
     setIntegerParam(QEProConnected, 0);
     callParamCallbacks();
 
-    seabreeze_shutdown();
+    odapi_shutdown();
 
     return asynSuccess;
 }
@@ -220,12 +220,12 @@ asynStatus QEPro::getDeviceInformation() {
     LOG("Collecting device information");
 
     char type[16];
-    seabreeze_get_model(this->deviceIndex, &(this->errorCode), type, sizeof(type));
+    odapi_adv_get_device_model_string(this->deviceIndex, &(this->errorCode), type, sizeof(type));
     setStringParam(ADModel, type);
 
     // Done twice to avoid lockup (not sure if needed, was in SDK example)
     char serial_number[32];
-    this->flag = seabreeze_get_serial_number(this->deviceIndex, &(this->errorCode), serial_number,
+    this->flag = odapi_get_serial_number(this->deviceIndex, &(this->errorCode), serial_number,
                                              sizeof(serial_number));
     serial_number[31] = '\0';
     // this->flag = seabreeze_get_serial_number(this->deviceIndex, &(this->errorCode),
@@ -234,16 +234,16 @@ asynStatus QEPro::getDeviceInformation() {
 
     if (checkFeature(HAS_LIGHTSOURCE_FEATURE)) {
         int light_source_count =
-            seabreeze_get_light_source_count(this->deviceIndex, &(this->errorCode));
+            odapi_adv_get_light_source_count(this->deviceIndex, &(this->errorCode));
         setIntegerParam(QEProLightSourceCount, light_source_count);
     } else
         setIntegerParam(QEProLightSourceCount, 0);
 
     long minIntegrationTime, maxIntegrationTime;
     minIntegrationTime =
-        seabreeze_get_min_integration_time_microsec(this->deviceIndex, &(this->errorCode));
+        odapi_get_minimum_integration_time_micros(this->deviceIndex, &(this->errorCode));
     maxIntegrationTime =
-        seabreeze_get_max_integration_time_microsec(this->deviceIndex, &(this->errorCode));
+        odapi_get_maximum_integration_time_micros(this->deviceIndex, &(this->errorCode));
     setDoubleParam(QEProMinIntegrationTime, (float)(minIntegrationTime / 1000));
     setDoubleParam(QEProMaxIntegrationTime, (float)(maxIntegrationTime / 1000));
 
@@ -252,10 +252,10 @@ asynStatus QEPro::getDeviceInformation() {
     unsigned long minCapacity = 0;
     unsigned long count = 0;
     if (checkFeature(HAS_BUFFER_FEATURE)) {
-        minCapacity = seabreeze_get_buffer_capacity_minimum(this->deviceIndex, &(this->errorCode));
-        maxCapacity = seabreeze_get_buffer_capacity_maximum(this->deviceIndex, &(this->errorCode));
-        capacity = seabreeze_get_buffer_capacity(this->deviceIndex, &(this->errorCode));
-        count = seabreeze_get_buffer_element_count(this->deviceIndex, &(this->errorCode));
+        minCapacity = odapi_adv_get_data_buffer_capacity_minimum(this->deviceIndex, &(this->errorCode));
+        maxCapacity = odapi_adv_get_data_buffer_capacity_maximum(this->deviceIndex, &(this->errorCode));
+        capacity = odapi_adv_get_data_buffer_capacity(this->deviceIndex, &(this->errorCode));
+        count = odapi_adv_get_data_buffer_number_of_elements(this->deviceIndex, &(this->errorCode));
     }
     setIntegerParam(QEProMaxBuffCapacity, (int)maxCapacity);
     setIntegerParam(QEProMinBuffCapacity, (int)minCapacity);
@@ -263,12 +263,12 @@ asynStatus QEPro::getDeviceInformation() {
     setIntegerParam(QEProBuffElementCount, (int)count);
 
     if (checkFeature(HAS_EDC_FEATURE)) {
-        this->darkPixelCount = seabreeze_get_electric_dark_pixel_indices(
+        this->darkPixelCount = odapi_get_electric_dark_pixel_indices(
             this->deviceIndex, &(this->errorCode), this->darkPixelIndices, MAX_DARK_PIXELS);
     }
 
     int formattedLen =
-        seabreeze_get_formatted_spectrum_length(this->deviceIndex, &(this->errorCode));
+        odapi_get_formatted_spectrum_length(this->deviceIndex, &(this->errorCode));
     // int unformattedLen = seabreeze_get_unformatted_spectrum_length(this->deviceIndex,
     // &(this->errorCode));
     setIntegerParam(QEProFormattedSpectLen, formattedLen);
@@ -287,13 +287,13 @@ asynStatus QEPro::getDeviceInformation() {
 void QEPro::checkDeviceFeatures() {
     const char* functionName = "checkDeviceFeatures";
     int features = 0;
-    seabreeze_set_tec_enable(this->deviceIndex, &(this->errorCode), 0);
+    odapi_adv_tec_set_enable(this->deviceIndex, &(this->errorCode), 0);
     if (this->errorCode == 0)
         features = features | HAS_TEC_FEATURE;
     else
         WARN("TEC feature not supported");
 
-    int minCapacity = seabreeze_get_buffer_capacity_minimum(this->deviceIndex, &(this->errorCode));
+    int minCapacity = odapi_adv_get_data_buffer_capacity_minimum(this->deviceIndex, &(this->errorCode)); // Returns unsigned long
     if (this->errorCode == 0)
         features = features | HAS_BUFFER_FEATURE;
     else
@@ -301,40 +301,18 @@ void QEPro::checkDeviceFeatures() {
 
     int test;
     int supported =
-        seabreeze_get_electric_dark_pixel_indices(this->deviceIndex, &(this->errorCode), &test, 1);
+        odapi_get_electric_dark_pixel_indices(this->deviceIndex, &(this->errorCode), &test, 1);
     if (0 == supported)
         WARN("Electric dark correction is not supported for this device.");
     else
         features = features | HAS_EDC_FEATURE;
 
-    int has_irrad = seabreeze_has_irrad_collection_area(this->deviceIndex, &(this->errorCode));
-    if (has_irrad == 0)
-        WARN("IRRAD collection area not stored on device");
-    else
-        features = features | HAS_IRRAD_COLLECT_AREA;
-
     int light_source_count =
-        seabreeze_get_light_source_count(this->deviceIndex, &(this->errorCode));
+        odapi_adv_get_light_source_count(this->deviceIndex, &(this->errorCode));
     if (this->errorCode == 0)
         features = features | HAS_LIGHTSOURCE_FEATURE;
     else
         WARN("Light source feature not supported");
-
-    int copied;
-    int slotIndex;
-    unsigned char eepromBytes[24] = {0};
-    for (int i = 0, slotIndex = 6; i < 8; i++, slotIndex++) {
-        copied = seabreeze_read_eeprom_slot(this->deviceIndex, &(this->errorCode), slotIndex,
-                                            eepromBytes, 24);
-        if (copied == 0) {
-            WARN("Non-Linearity correction feature not supported.");
-            break;
-        }
-        eepromBytes[copied] = '\0';
-        this->nonLinearityCoeffs[i] = atof((char*)eepromBytes);
-        // If we get to the last iteration of the loop without breaking, we have NLC
-        if (i == 7) features = features | HAS_NONLINEARITY_CORRECTION;
-    }
 
     setIntegerParam(QEProFeatures, features);
 }
@@ -372,8 +350,8 @@ asynStatus QEPro::setIntegrationTime(double integrationTime) {
                  maxIntegrationTime);
         status = asynError;
     } else {
-        seabreeze_set_integration_time_microsec(this->deviceIndex, &(this->errorCode),
-                                                (unsigned long)(integrationTime * 1000));
+        odapi_set_integration_time_micros(this->deviceIndex, &(this->errorCode),
+                                          (unsigned long)(integrationTime * 1000));
         if (this->errorCode == 0) {
             LOG_ARGS("Set integration time to %lf ms", integrationTime);
         } else {
@@ -403,11 +381,11 @@ asynStatus QEPro::setBufferCapacity(int capacity) {
         status = asynError;
     } else {
         // Clear the buffers first
-        seabreeze_clear_buffer(this->deviceIndex, &(this->errorCode));
+        odapi_adv_clear_data_buffer(this->deviceIndex, &(this->errorCode));
         if (capacity == currCapacity) {
             LOG_ARGS("Buffer capacity already set to %d", currCapacity);
         } else {
-            seabreeze_set_buffer_capacity(this->deviceIndex, &(this->errorCode), capacity);
+            odapi_adv_set_data_buffer_capacity(this->deviceIndex, &(this->errorCode), capacity);
             if (this->errorCode == 0) {
                 LOG_ARGS("Set buffer capacity time to %d", capacity);
             } else {
@@ -430,10 +408,10 @@ asynStatus QEPro::checkStatus() {
 
     double temp = 0;
     if (checkFeature(HAS_TEC_FEATURE))
-        temp = seabreeze_read_tec_temperature(this->deviceIndex, &(this->errorCode));
+        temp = odapi_adv_tec_get_temperature_degrees_C(this->deviceIndex, &(this->errorCode));
     setDoubleParam(ADTemperatureActual, temp);
     int bufferElementCount =
-        seabreeze_get_buffer_element_count(this->deviceIndex, &(this->errorCode));
+        odapi_adv_get_data_buffer_number_of_elements(this->deviceIndex, &(this->errorCode));
     setIntegerParam(QEProBuffElementCount, bufferElementCount);
     return asynSuccess;
 }
@@ -573,11 +551,11 @@ asynStatus QEPro::writeInt32(asynUser* pasynUser, epicsInt32 value) {
             errLogToStatus("Device does not support the buffer feature.", "setBuffCapacity");
         }
     } else if (function == QEProStrobe) {
-        seabreeze_set_strobe_enable(this->deviceIndex, &(this->errorCode), value);
+        odapi_adv_set_lamp_enable(this->deviceIndex, &(this->errorCode), value);
         if (this->errorCode != 0) status = asynError;
     } else if (function == QEProTEC) {
         if (checkFeature(HAS_TEC_FEATURE)) {
-            seabreeze_set_tec_enable(this->deviceIndex, &(this->errorCode), value);
+            odapi_adv_tec_set_enable(this->deviceIndex, &(this->errorCode), value);
             if (this->errorCode != 0) status = asynError;
             else {
                 setIntegerParam(QEProDarkAvailable, 0);
@@ -602,18 +580,18 @@ asynStatus QEPro::writeInt32(asynUser* pasynUser, epicsInt32 value) {
     } else if (function == QEProXAxisFormat) {
         setIntegerParam(QEProXAxisAvailable, 0);
     } else if (function == QEProTriggerMode) {
-        seabreeze_set_trigger_mode(this->deviceIndex, &(this->errorCode), value);
+        odapi_set_trigger_mode(this->deviceIndex, &(this->errorCode), value);
         if (this->errorCode != 0) status = asynError;
     } else if (function == QEProCheckStatus) {
         status = checkStatus();
     } else if (function == QEProShutter) {
-        seabreeze_set_shutter_open(this->deviceIndex, &(this->errorCode), value);
+        odapi_adv_set_shutter_open(this->deviceIndex, &(this->errorCode), value);
         if (this->errorCode != 0) status = asynError;
     } else if (function == QEProLightSource && checkFeature(HAS_LIGHTSOURCE_FEATURE)) {
         int num_light_sources;
         getIntegerParam(QEProLightSourceCount, &num_light_sources);
         for (int i = 0; i < num_light_sources; i++) {
-            seabreeze_set_light_source_enable(this->deviceIndex, &(this->errorCode), i, value);
+            odapi_adv_light_source_set_enable(this->deviceIndex, &(this->errorCode), i, value);
         }
     } else if (function == ADAcquire && value) {
         // If we start collecting, reset the number of spectra collected to 0.
@@ -655,14 +633,8 @@ asynStatus QEPro::writeFloat64(asynUser* pasynUser, epicsFloat64 value) {
     if (function == QEProIntegrationTime) {
         status = setIntegrationTime((double)value);
     } else if (function == ADTemperature && checkFeature(HAS_TEC_FEATURE)) {
-        seabreeze_set_tec_temperature(this->deviceIndex, &(this->errorCode), value);
+        odapi_adv_tec_set_temperature_setpoint_degrees_C(this->deviceIndex, &(this->errorCode), value);
         if (this->errorCode != 0) status = asynError;
-    } else if (function == QEProLightSourceIntensity && checkFeature(HAS_LIGHTSOURCE_FEATURE)) {
-        int num_light_sources;
-        getIntegerParam(QEProLightSourceCount, &num_light_sources);
-        for (int i = 0; i < num_light_sources; i++) {
-            seabreeze_set_light_source_intensity(this->deviceIndex, &(this->errorCode), i, value);
-        }
     } else if (function < FIRST_QEPRO_PARAM) {
         status = ADDriver::writeFloat64(pasynUser, value);
     }
@@ -766,7 +738,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
                 }
             }
 
-            seabreeze_get_formatted_spectrum(this->deviceIndex, &(this->errorCode), getDoubleBuffer(bufferId),
+            odapi_get_formatted_spectrum(this->deviceIndex, &(this->errorCode), getDoubleBuffer(bufferId),
                                              formattedLen);
 
             if (edcCorrection == 1 && checkFeature(HAS_EDC_FEATURE)) {
@@ -880,7 +852,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
 
    //             if (wavelengthsAvailable == 0 && collectedSpectrum == 1){
                     // Get our wavelengths array 
-                    seabreeze_get_wavelengths(this->deviceIndex, &(this->errorCode),
+                    odapi_get_wavelengths(this->deviceIndex, &(this->errorCode),
                                               getDoubleBuffer(WAVELENGTHS_BUFFER), formattedLen);
 
                     // X-axis callback, convert to Raman if requested, otherwise push out
@@ -923,7 +895,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
 // QEPro Constructor/Destructor
 //----------------------------------------------------------------------------
 
-QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
+QEPro::QEPro(const char* portName, long deviceIndex, int debugEnable)
     : ADDriver(
           portName, /* portName */
           1,        /* maxAddr */
@@ -946,7 +918,8 @@ QEPro::QEPro(const char* portName, int deviceIndex, int debugEnable)
 
     this->deviceIndex = deviceIndex;
 
-    if (debugEnable == 1) seabreeze_set_logfile(NULL, 0);
+    // Initialize API
+    odapi_initialize();
 
     createParam(QEProConnectedString, asynParamInt32, &QEProConnected);
     createParam(QEProFeaturesString, asynParamInt32, &QEProFeatures);

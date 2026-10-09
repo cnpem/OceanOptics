@@ -40,6 +40,7 @@
 
 // Acquisiton settings
 #define QEProTriggerModeString "QEPRO_TRIGGER_MODE"
+#define QEProAcquisitionAverageString "QEPRO_ACQUISITION_AVERAGE"
 #define QEProSubtractFormatString "QEPRO_SUB_FORMAT"
 #define QEProCorrectionString "QEPRO_CORRECTION"
 #define QEProSpectrumTypeString "QEPRO_SPECTRUM_TYPE"
@@ -161,6 +162,7 @@ class QEPro : public ADDriver {
     int QEProBuffElementCount;
 
     int QEProTriggerMode;
+    int QEProAcquisitionAverage;
     int QEProShutter;
     int QEProCheckStatus;
 #define LAST_QEPRO_PARAM QEProCheckStatus

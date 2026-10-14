@@ -429,11 +429,19 @@ void QEPro::allocateBuffer(int index) {
 }
 
 /**
- * @brief Function for clearing NDArray buffers
+ * @brief Wrapper for calling NDArray callbacks and clearing the buffer
  *
  */
-void QEPro::clearBuffer(int index) {
-    buffers[index]->release();
+void QEPro::doNDArrayCallbacks(NDArray *array) {
+    int arrayCallbacks;
+    getIntegerParam(NDArrayCallbacks, &arrayCallbacks);
+
+    updateTimeStamps(array);
+
+    if (arrayCallbacks)
+        doCallbacksGenericPointer(array, NDArrayData, 0);
+
+    array->release();
 }
 
 /**
@@ -743,15 +751,13 @@ void QEPro::getSpectrumThread(void* pPvt) {
 
             // Case 1, we are collecting dark frame
             if (spectrumType == QEPRO_SPECTRUM_DARK) {
-                doCallbacksFloat64Array(getDoubleBuffer(bufferId), formattedLen, QEProDark, 0);
-                clearBuffer(bufferId);
+                doNDArrayCallbacks(buffers[bufferId]);
                 setIntegerParam(QEProDarkAvailable, 1);
                 logToStatus("Collected dark spectrum", functionName);
             }
             // Case 2, collect reference frame
             else if (spectrumType == QEPRO_SPECTRUM_REFERENCE) {
-                doCallbacksFloat64Array(getDoubleBuffer(bufferId), formattedLen, QEProReference, 0);
-                clearBuffer(bufferId);
+                doNDArrayCallbacks(buffers[bufferId]);
                 setIntegerParam(QEProRefAvailable, 1);
                 logToStatus("Collected reference spectrum.", functionName);
 
@@ -804,11 +810,8 @@ void QEPro::getSpectrumThread(void* pPvt) {
                     // output the specturm right away
                     if (!acquisitionAverage || (imageMode == ADImageSingle)) {
                         logToStatus("Wrote out spectrum.", functionName);
-                        doCallbacksFloat64Array(getDoubleBuffer(SAMPLE_SPECTRUM_BUFFER), formattedLen,
-                                                QEProSample, 0);
-                        doCallbacksFloat64Array(getDoubleBuffer(OUTPUT_SPECTRUM_BUFFER), formattedLen, QEProOutput, 0);
-                        clearBuffer(SAMPLE_SPECTRUM_BUFFER);
-                        clearBuffer(OUTPUT_SPECTRUM_BUFFER);
+                        doNDArrayCallbacks(buffers[SAMPLE_SPECTRUM_BUFFER]);
+                        doNDArrayCallbacks(buffers[OUTPUT_SPECTRUM_BUFFER]);
                     // If average is desired AND acquistion mode is multiple OR continuous
                     // calculate the average of numSpectraToAverage spectra
                     } else if (imageMode == ADImageMultiple || ADImageContinuous) {
@@ -829,12 +832,8 @@ void QEPro::getSpectrumThread(void* pPvt) {
                                     getDoubleBuffer(AVERAGED_SAMPLE_SPECTRUM_BUFFER)[i] / numSpectraToAverage;
                             }
 
-                            doCallbacksFloat64Array(getDoubleBuffer(AVERAGED_SPECTRUM_BUFFER), formattedLen,
-                                                    QEProOutput, 0);
-                            doCallbacksFloat64Array(getDoubleBuffer(AVERAGED_SAMPLE_SPECTRUM_BUFFER), formattedLen,
-                                                    QEProSample, 0);
-                            clearBuffer(AVERAGED_SPECTRUM_BUFFER);
-                            clearBuffer(AVERAGED_SAMPLE_SPECTRUM_BUFFER);
+                            doNDArrayCallbacks(buffers[AVERAGED_SPECTRUM_BUFFER]);
+                            doNDArrayCallbacks(buffers[AVERAGED_SAMPLE_SPECTRUM_BUFFER]);
                             logToStatus("Wrote out averaged output spectrum.", functionName);
                             // Reset average buffer back to 0s
                             for (int i = 0; i < formattedLen; i++) {
@@ -869,8 +868,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
                             getDoubleBuffer(WAVELENGTHS_BUFFER)[i] = (1. / 522 - 1. / getDoubleBuffer(WAVELENGTHS_BUFFER)[i]) * 10e7;
                         }
                     }
-                    doCallbacksFloat64Array(getDoubleBuffer(WAVELENGTHS_BUFFER), formattedLen, QEProXAxis, 0);
-                    clearBuffer(WAVELENGTHS_BUFFER);
+                    doNDArrayCallbacks(buffers[WAVELENGTHS_BUFFER]);
       //              setIntegerParam(QEProXAxisAvailable, 1);
      //           }
 

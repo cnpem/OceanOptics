@@ -181,7 +181,9 @@ class QEPro : public ADDriver {
 
     // Functions for allocating memory for the various spectrum buffers
     void allocateBuffer(int index);
-    void clearBuffer(int index);
+
+    // Wrapper for the callbacks and release of a NDArray
+    void doNDArrayCallbacks(NDArray* array);
 
     // ID for thread created to perform spectrum collection
     epicsThreadId spectrumThread = NULL;

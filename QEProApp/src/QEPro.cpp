@@ -417,37 +417,31 @@ asynStatus QEPro::checkStatus() {
 }
 
 /**
- * @brief Function for allocating buffers for all spectra once at startup
+ * @brief Function for allocating NDArray buffers
  *
  */
-void QEPro::allocateBuffers() {
-    const char* functionName = "allocateBuffers";
-    int connected;
-    getIntegerParam(QEProConnected, &connected);
-    if (connected == 1) {
-        int formattedLen;
-        // int unformattedLen;
-        getIntegerParam(QEProFormattedSpectLen, &formattedLen);
-        // getIntegerParam(QEProUnformattedSpectLen, &unformattedLen);
-        size_t dim = (size_t)formattedLen;
+void QEPro::allocateBuffer(int index) {
+    int formattedLen;
+    getIntegerParam(QEProFormattedSpectLen, &formattedLen);
+    size_t dim = (size_t)formattedLen;
 
-        for (int i = 0; i < NUM_BUFFERS; i++) {
-            buffers[i] = pNDArrayPool->alloc(1, &dim, NDFloat64, dim, NULL);
-        }
-    }
+    buffers[index] = pNDArrayPool->alloc(1, &dim, NDFloat64, dim, NULL);
 }
 
 /**
- * @brief Function for clearing allocated spectra buffers
+ * @brief Wrapper for calling NDArray callbacks and clearing the buffer
  *
  */
-void QEPro::clearBuffers() {
-    int connected;
-    getIntegerParam(QEProConnected, &connected);
-    if (connected == 1) {
-        for (int i = 0; i < NUM_BUFFERS; i++)
-            buffers[i]->release();
-    }
+void QEPro::doNDArrayCallbacks(NDArray *array) {
+    int arrayCallbacks;
+    getIntegerParam(NDArrayCallbacks, &arrayCallbacks);
+
+    updateTimeStamps(array);
+
+    if (arrayCallbacks)
+        doCallbacksGenericPointer(array, NDArrayData, 0);
+
+    array->release();
 }
 
 /**
@@ -739,6 +733,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
                 }
             }
 
+            allocateBuffer(bufferId);
             odapi_get_formatted_spectrum(this->deviceIndex, &(this->errorCode), getDoubleBuffer(bufferId),
                                              formattedLen);
 
@@ -756,13 +751,13 @@ void QEPro::getSpectrumThread(void* pPvt) {
 
             // Case 1, we are collecting dark frame
             if (spectrumType == QEPRO_SPECTRUM_DARK) {
-                doCallbacksFloat64Array(getDoubleBuffer(bufferId), formattedLen, QEProDark, 0);
+                doNDArrayCallbacks(buffers[bufferId]);
                 setIntegerParam(QEProDarkAvailable, 1);
                 logToStatus("Collected dark spectrum", functionName);
             }
             // Case 2, collect reference frame
             else if (spectrumType == QEPRO_SPECTRUM_REFERENCE) {
-                doCallbacksFloat64Array(getDoubleBuffer(bufferId), formattedLen, QEProReference, 0);
+                doNDArrayCallbacks(buffers[bufferId]);
                 setIntegerParam(QEProRefAvailable, 1);
                 logToStatus("Collected reference spectrum.", functionName);
 
@@ -771,6 +766,9 @@ void QEPro::getSpectrumThread(void* pPvt) {
             else {
                     // Perform any selected dark/reference correction or absorbtion calculations
                     if (spectrumType == QEPRO_SPECTRUM_ABSORBTION){
+                        allocateBuffer(OUTPUT_SPECTRUM_BUFFER);
+                        allocateBuffer(DARK_SPECTRUM_BUFFER);
+                        allocateBuffer(REFERENCE_SPECTRUM_BUFFER);
                         calculateAbsorbtion(getDoubleBuffer(OUTPUT_SPECTRUM_BUFFER),
                                             getDoubleBuffer(SAMPLE_SPECTRUM_BUFFER),
                                             getDoubleBuffer(DARK_SPECTRUM_BUFFER),
@@ -779,18 +777,23 @@ void QEPro::getSpectrumThread(void* pPvt) {
                     } else if (correction == QEPRO_CORRECTION_REF) {
                         // For reference correction we have:
                         // final =  raw - dark - ( rawReference - dark )
+                        allocateBuffer(OUTPUT_SPECTRUM_BUFFER);
+                        allocateBuffer(REFERENCE_SPECTRUM_BUFFER);
                         subtractSpectra(getDoubleBuffer(OUTPUT_SPECTRUM_BUFFER),
                                         getDoubleBuffer(SAMPLE_SPECTRUM_BUFFER),
                                         getDoubleBuffer(REFERENCE_SPECTRUM_BUFFER),
                                         formattedLen, true);
                     } else if (correction == QEPRO_CORRECTION_DARK) {
                         // For dark correction subtract the dark spectrum
+                        allocateBuffer(OUTPUT_SPECTRUM_BUFFER);
+                        allocateBuffer(DARK_SPECTRUM_BUFFER);
                         subtractSpectra(getDoubleBuffer(OUTPUT_SPECTRUM_BUFFER),
                                         getDoubleBuffer(SAMPLE_SPECTRUM_BUFFER),
                                         getDoubleBuffer(DARK_SPECTRUM_BUFFER),
                                         formattedLen, true);
                     } else {
                         // If we don't apply corrections, just feed out the raw spectrum
+                        allocateBuffer(OUTPUT_SPECTRUM_BUFFER);
                         memcpy(getDoubleBuffer(OUTPUT_SPECTRUM_BUFFER),
                                getDoubleBuffer(SAMPLE_SPECTRUM_BUFFER),
                                formattedLen * sizeof(double));
@@ -807,12 +810,13 @@ void QEPro::getSpectrumThread(void* pPvt) {
                     // output the specturm right away
                     if (!acquisitionAverage || (imageMode == ADImageSingle)) {
                         logToStatus("Wrote out spectrum.", functionName);
-                        doCallbacksFloat64Array(getDoubleBuffer(SAMPLE_SPECTRUM_BUFFER), formattedLen,
-                                                QEProSample, 0);
-                        doCallbacksFloat64Array(getDoubleBuffer(OUTPUT_SPECTRUM_BUFFER), formattedLen, QEProOutput, 0);
+                        doNDArrayCallbacks(buffers[SAMPLE_SPECTRUM_BUFFER]);
+                        doNDArrayCallbacks(buffers[OUTPUT_SPECTRUM_BUFFER]);
                     // If average is desired AND acquistion mode is multiple OR continuous
                     // calculate the average of numSpectraToAverage spectra
                     } else if (imageMode == ADImageMultiple || ADImageContinuous) {
+                        allocateBuffer(AVERAGED_SPECTRUM_BUFFER);
+                        allocateBuffer(AVERAGED_SAMPLE_SPECTRUM_BUFFER);
                         // Add collected spectrum to average
                         for (int i = 0; i < formattedLen; i++) {
                             getDoubleBuffer(AVERAGED_SPECTRUM_BUFFER)[i] += getDoubleBuffer(OUTPUT_SPECTRUM_BUFFER)[i];
@@ -828,10 +832,8 @@ void QEPro::getSpectrumThread(void* pPvt) {
                                     getDoubleBuffer(AVERAGED_SAMPLE_SPECTRUM_BUFFER)[i] / numSpectraToAverage;
                             }
 
-                            doCallbacksFloat64Array(getDoubleBuffer(AVERAGED_SPECTRUM_BUFFER), formattedLen,
-                                                    QEProOutput, 0);
-                            doCallbacksFloat64Array(getDoubleBuffer(AVERAGED_SAMPLE_SPECTRUM_BUFFER), formattedLen,
-                                                    QEProSample, 0);
+                            doNDArrayCallbacks(buffers[AVERAGED_SPECTRUM_BUFFER]);
+                            doNDArrayCallbacks(buffers[AVERAGED_SAMPLE_SPECTRUM_BUFFER]);
                             logToStatus("Wrote out averaged output spectrum.", functionName);
                             // Reset average buffer back to 0s
                             for (int i = 0; i < formattedLen; i++) {
@@ -853,6 +855,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
 
    //             if (wavelengthsAvailable == 0 && collectedSpectrum == 1){
                     // Get our wavelengths array 
+                    allocateBuffer(WAVELENGTHS_BUFFER);
                     odapi_get_wavelengths(this->deviceIndex, &(this->errorCode),
                                               getDoubleBuffer(WAVELENGTHS_BUFFER), formattedLen);
 
@@ -865,7 +868,7 @@ void QEPro::getSpectrumThread(void* pPvt) {
                             getDoubleBuffer(WAVELENGTHS_BUFFER)[i] = (1. / 522 - 1. / getDoubleBuffer(WAVELENGTHS_BUFFER)[i]) * 10e7;
                         }
                     }
-                    doCallbacksFloat64Array(getDoubleBuffer(WAVELENGTHS_BUFFER), formattedLen, QEProXAxis, 0);
+                    doNDArrayCallbacks(buffers[WAVELENGTHS_BUFFER]);
       //              setIntegerParam(QEProXAxisAvailable, 1);
      //           }
 
@@ -977,7 +980,6 @@ QEPro::QEPro(const char* portName, long deviceIndex, int debugEnable)
         checkDeviceFeatures();
         getDeviceInformation();
         // printConnectedDeviceInfo();
-        allocateBuffers();
         logToStatus("Device connected.", functionName);
     }
 
@@ -1000,7 +1002,6 @@ QEPro::~QEPro() {
     LOG("Disconnecting QEPro device...");
     this->lock();
     disconnectFromDeviceQEPro();
-    clearBuffers();
     this->unlock();
     epicsThreadMustJoin(this->spectrumThread);
     LOG("Shutdown complete.");

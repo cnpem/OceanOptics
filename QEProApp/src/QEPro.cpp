@@ -487,7 +487,7 @@ void QEPro::subtractSpectra(double* outputData, const double* rawData, const dou
 
 void QEPro::calculateAbsorbtion(double* outputData, const double* rawData, const double* rawDark, const double* rawReference, int formattedLen){
     for(int i = 0; i< formattedLen; i++){
-        double ratio = (rawData[i] - dark[i]) / (rawReference[i] - rawDark[i]);
+        double ratio = (rawData[i] - rawDark[i]) / (rawReference[i] - rawDark[i]);
         outputData[i] = -1 * log10(ratio);
     }
 }

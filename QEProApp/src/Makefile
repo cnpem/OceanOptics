@@ -21,7 +21,7 @@ LIB_LIBS += seabreeze
 
 DBD += QEProSupport.dbd
 
-
+include $(ADCORE)/ADApp/commonLibraryMakefile
 # #=============================
 
 include $(TOP)/configure/RULES

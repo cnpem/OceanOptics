@@ -14,6 +14,8 @@ $(PROD_NAME)_DBD += base.dbd asyn.dbd busySupport.dbd asSupport.dbd devIocStats.
 # <name>_registerRecordDeviceDriver.cpp will be created from <name>.dbd
 $(PROD_NAME)_SRCS += $(PROD_NAME)_registerRecordDeviceDriver.cpp $(PROD_NAME)Main.cpp
 
+DBD_NAME = $(PROD_IOC)
+include $(ADCORE)/ADApp/commonDriverMakefile
 
 $(PROD_NAME)_LIBS += seabreeze asyn QEPro busy autosave devIocStats $(EPICS_BASE_IOC_LIBS)
 

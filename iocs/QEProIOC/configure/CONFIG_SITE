@@ -41,6 +41,7 @@ CHECK_RELEASE = YES
 # file itself.
 
 CROSS_COMPILER_TARGET_ARCHS=linux-x86_64-debug
+LDFLAGS += -Wl,--no-as-needed
 
 -include $(TOP)/../CONFIG_SITE.local
 -include $(TOP)/../configure/CONFIG_SITE.local

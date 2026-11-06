@@ -35,3 +35,5 @@ services:
           $(OceanOptics)/db/QEProSpectra.template
         IOC_BUILD_VARS:
           LDFLAGS += -Wl,--no-as-needed
+        IOC_CMDS:
+          /opt/epics/modules/QEPro/st.cmd

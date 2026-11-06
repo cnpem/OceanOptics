@@ -7,7 +7,7 @@
 
 #include <array>
 
-#include "api/SeaBreezeWrapper.h"
+#include <api/OceanDirectAPI.h>
 
 // Device connected & features
 #define QEProConnectedString "QEPRO_CONNECTED"
@@ -97,7 +97,7 @@ typedef enum QEProBuffersId {
 
 class QEPro : public ADDriver {
    public:
-    QEPro(const char* portName, int deviceIndex, int debugEnable);
+    QEPro(const char* portName, long deviceIndex, int debugEnable);
     ~QEPro();
 
     /* These are the methods that we override from asynPortDriver */
@@ -167,7 +167,7 @@ class QEPro : public ADDriver {
     int QEProCheckStatus;
 #define LAST_QEPRO_PARAM QEProCheckStatus
    private:
-    int deviceIndex;
+    long deviceIndex;
     int flag;
     int errorCode;
 

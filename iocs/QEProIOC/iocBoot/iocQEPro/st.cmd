@@ -16,7 +16,7 @@ epicsEnvSet("EPICS_CAS_INTF_ADDR_LIST",              "127.0.0.1")
 
 epicsEnvSet("PREFIX", "XF:28ID2-ES{QEPro:Spec-1}")
 epicsEnvSet("PORT",   "QEPro")
-
+epicsEnvSet("EPICS_DB_INCLUDE_PATH", "$(ADCORE)/db")
 
 QEProConfig("$(PORT)", 0)
 
@@ -31,7 +31,7 @@ asynSetTraceMask("$(PORT)", -1, 0x9)
 #asynSetTraceIOMask("$(PORT)", -1, 0x0)
 #asynSetTraceIOMask("$(PORT)", -1, 0x2)
 
-dbLoadRecords("$(QEPRO)/db/QEPro.template", "PREFIX=$(PREFIX), PORT=$(PORT), ADDR=0, TIMEOUT=1")
+dbLoadRecords("$(QEPRO)/db/QEPro.template", "PREFIX=$(PREFIX), P=$(PREFIX), R=, PORT=$(PORT), ADDR=0, TIMEOUT=1")
 dbLoadRecords("$(QEPRO)/db/QEProCollect.template", "PREFIX=$(PREFIX), PORT=$(PORT), ADDR=0, TIMEOUT=1")
 dbLoadRecords("$(QEPRO)/db/QEProSpectra.template", "PREFIX=$(PREFIX), PORT=$(PORT), ADDR=0, TIMEOUT=1")
 dbLoadRecords("$(EPICS_BASE)/db/asynRecord.db", "PORT=$(PORT), P=$(PREFIX), R=:ASYNIO, ADDR=0, OMAX=0, IMAX=0")

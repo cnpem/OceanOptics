@@ -5,7 +5,7 @@ include $(TOP)/configure/CONFIG
 #
 #  #======== DETECTOR LIBRARY ==============
 
-USR_CXXFLAGS_Linux += -D_LINUX -D_x86 -std=c++98
+USR_CXXFLAGS_Linux += -D_LINUX -D_x86 -std=c++11
 USR_CFLAGS_Linux += -std=gnu99
 
 # The following is needed on win32-x86-debug because the Prosilica library 
@@ -21,6 +21,7 @@ LIB_LIBS += seabreeze
 
 DBD += QEProSupport.dbd
 
+include $(ADCORE)/ADApp/commonLibraryMakefile
 
 # #=============================
 

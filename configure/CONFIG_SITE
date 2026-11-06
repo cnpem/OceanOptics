@@ -40,7 +40,7 @@ CHECK_RELEASE = YES
 # settings without having to modify the configure/CONFIG_SITE
 # file itself.
 
-CROSS_COMPILER_TARGET_ARCHS=linux-x86_64-debug
+#CROSS_COMPILER_TARGET_ARCHS=linux-x86_64-debug
 
 -include $(TOP)/../CONFIG_SITE.local
 -include $(TOP)/../configure/CONFIG_SITE.local

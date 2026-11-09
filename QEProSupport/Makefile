@@ -1,6 +1,8 @@
 TOP=..
 include $(TOP)/configure/CONFIG
 
+./fetch-modified-seabreeze.sh
+
 SRC_DIRS += ../SeaBreeze/include
 
 INC += api/SeaBreezeWrapper.h

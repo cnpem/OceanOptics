@@ -1,7 +1,7 @@
 #Makefile at top of application tree
 TOP = .
 include $(TOP)/configure/CONFIG
-DIRS += configure QEProSupport QEProApp iocs
+DIRS += configure QEProSupport QEProApp #iocs
 QEProSupport_DEPEND_DIRS += configure
 QEProApp_DEPEND_DIRS   += QEProSupport
 iocs_DEPEND_DIRS += QEProApp

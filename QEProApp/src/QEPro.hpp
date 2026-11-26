@@ -176,12 +176,14 @@ class QEPro : public ADDriver {
 
     float nonLinearityCoeffs[8] = {0};
 
-    // Buffers (allocated once on startup for better perf)
+    // Buffers
     std::array<NDArray*, NUM_BUFFERS> buffers;
 
-    // Functions for allocating memories for the various spectrum buffers
-    void allocateBuffers();
-    void clearBuffers();
+    // Functions for allocating memory for the various spectrum buffers
+    void allocateBuffer(int index);
+
+    // Wrapper for the callbacks and release of a NDArray
+    void doNDArrayCallbacks(NDArray* array);
 
     // ID for thread created to perform spectrum collection
     epicsThreadId spectrumThread = NULL;

@@ -1,0 +1,39 @@
+services:
+  ad-ocean-optics:
+    image: ghcr.io/cnpem/ad-ocean-optics-epics-ioc:$TAG
+    build:
+      context: ./
+      dockerfile: docker/Dockerfile
+      target: dynamic-link
+      labels:
+        org.opencontainers.image.source: https://github.com/cnpem/epics-in-docker
+      args:
+        IS_IOC_AREADETECTOR: 1
+        IS_MODULE: 1
+        MODULE_NAME: OceanOptics
+        BUILD_PACKAGES: libusb-dev
+        RUNTIME_PACKAGES: libxml2 libtiff6 libusb-0.1 libboost-system1.83.0
+        IOC_CREATE: 1
+        REPONAME: QEPro
+        RUNDIR: /opt/QEPro/iocBoot/iocQEPro
+        IOC_DBDS:
+          asyn.dbd
+          QEProSupport.dbd
+          busySupport.dbd
+          asSupport.dbd
+          devIocStats.dbd
+        IOC_LIBS:
+          seabreeze
+          asyn
+          QEPro
+          busy
+        IOC_SYS_LIBS:
+          usb
+        IOC_DBS:
+          $(OceanOptics)/db/QEPro.template
+          $(OceanOptics)/db/QEProCollect.template
+          $(OceanOptics)/db/QEProSpectra.template
+        IOC_BUILD_VARS:
+          LDFLAGS += -Wl,--no-as-needed
+        IOC_CMDS:
+          /opt/epics/modules/QEPro/st.cmd
